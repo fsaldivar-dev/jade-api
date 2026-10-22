@@ -134,6 +134,55 @@ public struct AppClient: Sendable {
         return StreamParsing.serverEvents(try await performStreaming(endpoint, isolation: isolation).chunks)
     }
 
+    // MARK: - Transferencias
+
+    /// Petición adaptada por los interceptores de petición, lista para un transporte de transferencias.
+    private func adaptedRequest(_ endpoint: Endpoint, isolation: isolated (any Actor)? = #isolation) async throws -> Request {
+        var request = try makeRequest(endpoint)
+        for interceptor in interceptors {
+            if let adapter = interceptor as? any RequestAdapter { request = try await adapter.adapt(request) }
+        }
+        return request
+    }
+
+    /// `kind: .download` → manejador con progreso. `destination` fija el archivo final.
+    public func performDownload(_ endpoint: Endpoint, to destination: URL? = nil, isolation: isolated (any Actor)? = #isolation) async throws -> Download {
+        guard let transfers = transport as? any TransferClient else { throw HTTPError.unsupported("download") }
+        return try transfers.download(try await adaptedRequest(endpoint, isolation: isolation), to: destination)
+    }
+
+    /// `kind: .upload` → manejador con progreso. El body sale de `Body<FileUpload>`, `Body<Multipart>`,
+    /// `Body<Data>` o cualquier `Encodable` (JSON).
+    public func performUpload(_ endpoint: Endpoint, isolation: isolated (any Actor)? = #isolation) async throws -> Upload {
+        guard let transfers = transport as? any TransferClient else { throw HTTPError.unsupported("upload") }
+        var endpoint = endpoint
+        let body: UploadBody
+        switch endpoint.body {
+        case .value(let value as FileUpload):
+            let multipart = Multipart(value)
+            endpoint.headers["Content-Type"] = multipart.contentType
+            body = .data(try multipart.encoded())
+        case .value(let value as Multipart):
+            endpoint.headers["Content-Type"] = value.contentType
+            body = .data(try value.encoded())
+        case .value(let value as Data):
+            endpoint.headers["Content-Type"] = endpoint.headers["Content-Type"] ?? "application/octet-stream"
+            body = .data(value)
+        case .value(let value):
+            endpoint.headers["Content-Type"] = endpoint.headers["Content-Type"] ?? "application/json"
+            do { body = .data(try encoder.encode(AnyEncodable(value))) } catch { throw HTTPError.encoding(error) }
+        case .fields(let fields):
+            endpoint.headers["Content-Type"] = endpoint.headers["Content-Type"] ?? "application/json"
+            do { body = .data(try encoder.encode(FieldsBody(fields))) } catch { throw HTTPError.encoding(error) }
+        case nil:
+            body = .data(Data())
+        }
+        endpoint.body = nil   // el body viaja como UploadBody, no en la Request
+        var request = try await adaptedRequest(endpoint, isolation: isolation)
+        if case .data(let data) = body { request.body = data }
+        return try transfers.upload(request, body: body)
+    }
+
     // MARK: - Ejecución (una variante por familia de retorno; la macro elige)
 
     /// Envía la petición ya formada: interceptores del usuario → opciones (caché, single-flight,

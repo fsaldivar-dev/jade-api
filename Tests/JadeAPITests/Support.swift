@@ -273,3 +273,17 @@ protocol FeedRepository: Sendable {
     @Api("/events", kind: .sse)
     func events() async throws -> AsyncThrowingStream<ServerEvent, any Error>
 }
+
+// MARK: - Fase 3b: transferencias
+
+@Repository
+protocol FilesRepository: Sendable {
+    @Api("/files/:id", kind: .download)
+    func export(id: Int) async throws -> Download
+
+    @Api("/media", method: .post, kind: .upload)
+    func upload(file: Body<FileUpload>) async throws -> Upload
+
+    @Api("/media/raw", method: .put, kind: .upload)
+    func uploadRaw(payload: Body<Data>) async throws -> Upload
+}

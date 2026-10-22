@@ -18,6 +18,8 @@ public enum HTTPError: Error, CustomStringConvertible {
     case cancelled
     /// Se superó el `timeout` de las opciones del endpoint.
     case timeout(Duration, Request)
+    /// El transporte configurado no sabe hacer esta operación (descargas, subidas, sockets).
+    case unsupported(String)
 
     public var description: String {
         switch self {
@@ -29,6 +31,7 @@ public enum HTTPError: Error, CustomStringConvertible {
         case .insecureURL(let url): "URL insegura fuera de Debug: \(url.absoluteString) (solo https)"
         case .cancelled: "cancelada"
         case .timeout(let duration, let request): "timeout de \(duration) en \(request.method.rawHTTP) \(request.path)"
+        case .unsupported(let what): "el transporte no soporta \(what)"
         }
     }
 

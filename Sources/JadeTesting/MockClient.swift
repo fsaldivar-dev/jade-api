@@ -187,5 +187,63 @@ extension Environment {
     }
 }
 
+extension MockClient: TransferClient {
+
+    /// Descarga simulada: el body del mock se escribe en `destination` (o en temporal) en `steps`
+    /// pasos de progreso separados por `latency`. Un status fuera de 2xx falla como una petición normal.
+    public func download(_ request: Request, to destination: URL?) throws -> Download {
+        let state = TransferStateBox<URL>()
+        let task = Task { [latency] in
+            do {
+                let response = try await self.send(request)
+                guard response.isSuccess else { throw HTTPError.status(response.status, response) }
+                let total = Int64(response.body.count)
+                let steps: Int64 = 4
+                for step in 1...steps {
+                    if latency > .zero { try await Task.sleep(for: latency / Int(steps)) }
+                    try Task.checkCancellation()
+                    state.report(TransferProgress(bytesTransferred: total * step / steps, totalBytes: total))
+                }
+                let target = destination ?? FileManager.default.temporaryDirectory.appendingPathComponent("jade-mock-\(UUID().uuidString)")
+                try response.body.write(to: target)
+                state.finish(target)
+            } catch is CancellationError {
+                state.fail(HTTPError.cancelled)
+            } catch {
+                state.fail(error)
+            }
+        }
+        return state.download(request: request, controls: DownloadControls(
+            cancel: { task.cancel() },
+            pause: { task.cancel(); return nil },
+            resume: {}))
+    }
+
+    public func upload(_ request: Request, body: UploadBody) throws -> Upload {
+        let state = TransferStateBox<Response>()
+        let task = Task {
+            do {
+                let size: Int64
+                switch body {
+                case .data(let data): size = Int64(data.count)
+                case .file(let url): size = Int64((try? Data(contentsOf: url).count) ?? 0)
+                }
+                for step in 1...4 as ClosedRange<Int64> {
+                    try Task.checkCancellation()
+                    state.report(TransferProgress(bytesTransferred: size * step / 4, totalBytes: size))
+                }
+                let response = try await self.send(request)
+                guard response.isSuccess else { throw HTTPError.status(response.status, response) }
+                state.finish(response)
+            } catch is CancellationError {
+                state.fail(HTTPError.cancelled)
+            } catch {
+                state.fail(error)
+            }
+        }
+        return state.upload(request: request) { task.cancel() }
+    }
+}
+
 /// Atajo de nivel superior para `MockClient.MockStream`.
 public typealias MockStream = MockClient.MockStream
