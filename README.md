@@ -127,10 +127,10 @@ Como el repositorio es un protocolo, también puedes escribir un mock a mano y n
 
 ## Decoradores sobre endpoints
 
-Cualquier decorador de AnnotationSwift se apila sobre un requisito y se aplica al método generado:
+Cualquier decorador de AnnotationSwift se apila sobre un requisito y se aplica al método generado. Márcalo `@Annotation` y activa el plugin `AnnotationRegistry` en tu target para no declarar nada a mano:
 
 ```swift
-@attached(peer) macro Retry(_ attempts: Int) = #externalMacro(module: "AnnotationMacros", type: "MarkerMacro")
+@Annotation
 struct Retry: Decorator { … }
 
 @Repository
@@ -142,7 +142,7 @@ protocol UsersRepository {
 }
 ```
 
-Orden de arriba abajo: `Retry` envuelve a `Logged`, que envuelve la petición. Si no quieres declarar marcadores, `@Decorate(Retry(3), Logged())` hace lo mismo sin la línea `@attached(peer) macro …`. Los decoradores de red incluidos (`@Retry` consciente de idempotencia, `@Timeout`, `@Cached`, `@SingleFlight`) llegan en la iteración 2.
+Orden de arriba abajo: `Retry` envuelve a `Logged`, que envuelve la petición. Sin el plugin, declara el marcador (`@attached(peer) macro Retry(_ attempts: Int) = #externalMacro(module: "AnnotationMacros", type: "MarkerMacro")`) o usa `@Decorate(Retry(3), Logged())`. Los decoradores de red incluidos (`@Retry` consciente de idempotencia, `@Timeout`, `@Cached`, `@SingleFlight`) llegan en la iteración 2.
 
 ## Concurrencia
 
@@ -154,7 +154,7 @@ Declara los repositorios como `protocol X: Sendable`. El cliente generado es `Se
 
 ## Ejemplo
 
-[`Examples/Login`](Examples/Login): app SwiftUI con selector de entorno (dev, prod, mock), login con repositorios declarados, `@Decorate(Logged(), Retry(2))` sin declarar marcadores, y panel con lo que hicieron los decoradores.
+[`Examples/Login`](Examples/Login): app SwiftUI con selector de entorno (dev, prod, mock), login con repositorios declarados, `@Logged @Retry(2)` registrados con `@Annotation` y el plugin, y panel con lo que hicieron los decoradores.
 
 ```bash
 swift run --package-path Examples/Login

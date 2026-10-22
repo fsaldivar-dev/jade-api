@@ -62,7 +62,7 @@ struct LoginView: View {
             List(model.log, id: \.self) { line in Text(line).font(.caption.monospaced()) }
                 .frame(minWidth: 300)
                 .overlay(alignment: .top) {
-                    Text("Decoradores: @Decorate(Logged(), Retry(2))").font(.caption).padding(4)
+                    Text("Decoradores: @Logged @Retry(2)").font(.caption).padding(4)
                 }
         }
     }

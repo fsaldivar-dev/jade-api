@@ -8,36 +8,39 @@ struct Profile: Codable, Sendable { let id: Int; let name: String; let role: Str
 
 // MARK: - Repositorios: la declaración es el contrato
 
-// Los decoradores van como valores con @Decorate: no hace falta declarar ningún marcador.
-// (La forma apilada `@Logged @Retry(2)` también existe; requiere una línea de registro por decorador.)
+// Los decoradores se apilan directo: `Logged` y `Retry` están marcados @Annotation más abajo y el
+// plugin AnnotationRegistry (activado en Package.swift) genera sus declaraciones al compilar.
 
 @Repository
 protocol AuthRepository: Sendable {
-    @Decorate(Logged())
+    @Logged
     @Api("/auth", method: .post)
     func login(user: String, password: String) async throws -> Token
 
-    @Decorate(Logged())
+    @Logged
     @Api("/auth/logout", method: .post)
     func logout(token: Header<String>) async throws
 }
 
 @Repository
 protocol ProfileRepository: Sendable {
-    @Decorate(Logged(), Retry(2))        // Logged envuelve a Retry: un solo log para los dos intentos
+    @Logged
+    @Retry(2)                            // Logged envuelve a Retry: un solo log para los dos intentos
     @Api("/me")
     func me(token: Header<String>) async throws -> Profile
 }
 
-// MARK: - Decoradores del usuario: tipos normales, sin registro
+// MARK: - Decoradores del usuario: tipos normales marcados @Annotation
 
 /// Deja rastro de cada llamada en el panel de la app.
+@Annotation
 struct Logged: HookDecorator {
     func willCall(_ call: Call) { Log.append("→ \(call.function)") }
     func didReturn(_ call: Call, result: Any) { Log.append("← \(call.function) ok") }
     func didThrow(_ call: Call, error: any Error) { Log.append("✗ \(call.function): \(error)") }
 }
 
+@Annotation
 struct Retry: Decorator {
     let attempts: Int
     init(_ attempts: Int) { self.attempts = attempts }

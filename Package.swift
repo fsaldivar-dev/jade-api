@@ -35,7 +35,11 @@ let package = Package(
                 .product(name: "AnnotationSwift", package: "experimental-annotation-swift"),
             ]
         ),
-        .testTarget(name: "JadeAPITests", dependencies: ["JadeAPI"]),
+        .testTarget(
+            name: "JadeAPITests",
+            dependencies: ["JadeAPI"],
+            plugins: [.plugin(name: "AnnotationRegistry", package: "experimental-annotation-swift")]
+        ),
         .testTarget(
             name: "JadeAPIMacrosTests",
             dependencies: [

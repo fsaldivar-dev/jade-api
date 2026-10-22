@@ -7,10 +7,10 @@ struct User: Codable, Equatable, Sendable { let id: Int; let name: String }
 struct Token: Codable, Equatable, Sendable { let value: String }
 struct Credentials: Codable, Equatable, Sendable { let user: String; let password: String }
 
-// MARK: - Decorador del usuario, apilado sobre requisitos del protocolo
+// MARK: - Decorador del usuario, apilado sobre requisitos del protocolo.
+// @Annotation + el plugin AnnotationRegistry (activado en Package.swift) generan la declaración de @Retry.
 
-@attached(peer) macro Retry(_ attempts: Int) = #externalMacro(module: "AnnotationMacros", type: "MarkerMacro")
-
+@Annotation
 struct Retry: Decorator {
     let attempts: Int
     init(_ attempts: Int) { self.attempts = attempts }
