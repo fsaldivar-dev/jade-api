@@ -304,3 +304,30 @@ protocol ChatRepository: Sendable {
     @Socket("/ws/bin")
     func binary() async throws -> Socket<Data, Data>
 }
+
+// MARK: - Atributos de repositorio: @BaseURL, @Headers, @KeyMapping
+
+struct Account: Codable, Equatable, Sendable {
+    let id: Int
+    let fullName: String
+    let createdAt: Date
+}
+
+@Repository
+@BaseURL("/v2")
+@Headers(["X-Client": "ios", "Accept-Language": "es-MX"])
+@KeyMapping(.snakeCase, dates: .iso8601)
+protocol AccountsRepository: Sendable {
+    @Api("/accounts/:id")
+    func account(id: Int) async throws -> Account                 // {full_name, created_at} → Account
+
+    @Headers(["X-Trace": "create"])
+    @Api("/accounts", method: .post)
+    func create(fullName: String) async throws -> Account         // body {"full_name": …}
+}
+
+@Repository
+@BaseURL("https://legacy.ejemplo.com/api")
+protocol LegacyRepository: Sendable {
+    @Api("/ping") func ping() async throws -> String
+}

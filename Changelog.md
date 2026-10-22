@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - Unreleased
+### Added
+- `@Headers([:])` sobre el protocolo (todos los endpoints) o sobre un requisito; prioridad endpoint →
+  repositorio → cliente. Avisa en Debug si fija una credencial.
+- `@BaseURL("/v2")` como prefijo sobre la base del cliente o del servicio, o una URL completa que la sustituye.
+- `@KeyMapping(.snakeCase, dates: .iso8601)` por repositorio: copia los codificadores del cliente con la
+  estrategia nueva. `KeyMapping`, `DateMapping` y `AppClient.with(base:)`, `with(headers:)`, `with(keys:dates:)`.
+- Catálogo DocC con Quick Start, niveles y temas por capa (`swift package generate-documentation`).
+
+### Changed
+- `docs/ROADMAP.md` dice lo que hay: lo que cada iteración prometió y no se construyó está en una lista de
+  deuda, y el estado de cada bloque refleja el código.
+- README: dependencia por versión (`from: "0.5.0"`), sin referencias a `@Cached`/`@Authenticated`.
+
 ## [0.5.0] - 2026-10-22
 ### Added
 - Login OIDC al estilo FAPI 2.0: `OpenIDDiscovery` (issuer verificado, endpoints https, PKCE S256

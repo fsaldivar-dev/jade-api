@@ -24,7 +24,7 @@ extension AppClient {
 
     /// Lanza N operaciones iguales con límite de concurrencia y devuelve los resultados **en el orden
     /// en que se añadieron**. Si una falla, cancela las demás y lanza (fail-fast). Para tolerar fallos
-    /// usa ``groupSettled(maxConcurrent:progress:_:)``.
+    /// usa ``groupSettled(maxConcurrent:progress:isolation:_:)``.
     ///
     /// ```swift
     /// let users = try await client.group(maxConcurrent: 3) { group in
@@ -44,7 +44,7 @@ extension AppClient {
         return try settled.map { try $0.get() }
     }
 
-    /// Como ``group(maxConcurrent:progress:_:)`` pero no lanza: ejecuta todas y devuelve un `Result` por
+    /// Como ``group(maxConcurrent:progress:isolation:_:)`` pero no lanza: ejecuta todas y devuelve un `Result` por
     /// operación, en orden. Para tolerar hasta N fallos, cuenta los `.failure` del resultado.
     public func groupSettled<Element: Sendable>(
         maxConcurrent: Int = 4,
@@ -59,7 +59,7 @@ extension AppClient {
     }
 
     /// Pocas operaciones **distintas** a la vez, cada una con su tipo. Si una falla, cancela las otras.
-    /// No tiene límite de concurrencia: para N iguales usa ``group(maxConcurrent:progress:_:)``;
+    /// No tiene límite de concurrencia: para N iguales usa ``group(maxConcurrent:progress:isolation:_:)``;
     /// para dos o tres sin librería, `async let` del lenguaje hace lo mismo.
     ///
     /// ```swift

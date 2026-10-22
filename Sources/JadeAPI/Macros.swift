@@ -16,7 +16,7 @@
 ///
 /// Por cada requisito genera un método en `<Nombre>Client` que arma un ``Endpoint`` y lo
 /// ejecuta con ``AppClient``. Los decoradores de AnnotationSwift que apiles sobre un requisito
-/// (`@Retry`, `@Cached`, …) se copian al método generado y se envuelven como siempre, porque
+/// (`@Retry`, `@Logged`, …) se copian al método generado y se envuelven como siempre, porque
 /// el tipo generado es `@Decorable`.
 ///
 /// Reglas: todo requisito lleva `@Api` y es `async throws`. El retorno puede ser `Decodable`,
@@ -68,6 +68,40 @@ public macro Api(_ path: String = "", method: HTTPMethod? = nil, timeout: Durati
 /// El cliente generado hace `client.with(interceptors: [SignRequest(), RequestLogger(.curl)])` en su `init`.
 @attached(peer)
 public macro Interceptors(_ interceptors: any Interceptor...) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Headers fijos para todos los endpoints del repositorio (sobre el protocolo) o para uno solo
+/// (sobre el requisito). Los del endpoint ganan sobre los del repositorio, y estos sobre los del cliente.
+///
+/// ```swift
+/// @Repository
+/// @Headers(["X-Client": "ios", "Accept-Language": "es-MX"])
+/// protocol UsersRepository: Sendable {
+///     @Headers(["X-Trace": "users"])
+///     @Api("/users/:id") func user(id: Int) async throws -> User
+/// }
+/// ```
+///
+/// Un header con nombre de credencial (`Authorization`, `X-Api-Key`, …) y valor fijo dispara el aviso de
+/// ``SecurityAudit`` en Debug: los secretos no van en el código; usa un `TokenProvider` o un interceptor.
+@attached(peer)
+public macro Headers(_ headers: [String: String]) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Base del repositorio. Un prefijo de ruta (`"/v2"`) se añade a la base del cliente o del servicio;
+/// una URL completa (`"https://legacy.ejemplo.com/api"`) la sustituye. Solo sobre el protocolo.
+///
+/// ```swift
+/// @Repository(service: "users")
+/// @BaseURL("/v2")
+/// protocol UsersRepository: Sendable { … }      // https://users.ejemplo.com + /v2 + /users/7
+/// ```
+@attached(peer)
+public macro BaseURL(_ base: String) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Traducción de claves (y opcionalmente de fechas) para todo el repositorio, sin tocar el
+/// `JSONDecoder` del cliente: `@KeyMapping(.snakeCase)`, `@KeyMapping(.snakeCase, dates: .iso8601)`.
+/// Solo sobre el protocolo. Ver ``KeyMapping`` y ``DateMapping``.
+@attached(peer)
+public macro KeyMapping(_ keys: KeyMapping, dates: DateMapping? = nil) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
 
 /// Convierte lo decodificado (DTO) en el tipo de retorno del requisito, con un ``Transformer``.
 /// `Mapper.Input` es lo que se decodifica; `Mapper.Output` debe ser el retorno.

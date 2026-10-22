@@ -4,35 +4,58 @@ Declara tu API con anotaciones; Jade la ejecuta.
 
 ## Overview
 
-JadeAPI está construida sobre AnnotationSwift. Un repositorio es un `protocol`; cada endpoint es un
-requisito anotado; `@Repository` genera la implementación y los decoradores que apiles sobre cada
-endpoint se envuelven como en cualquier función decorable.
+Un repositorio es un `protocol`; cada endpoint es un requisito anotado con ``Api(_:method:timeout:kind:)``.
+``Repository(service:)`` genera la implementación y los decoradores de AnnotationSwift que apiles sobre
+cada endpoint se envuelven como en cualquier función decorable.
 
 ```swift
 @Repository
-protocol UsersRepository {
-    @Retry(3)
+protocol UsersRepository: Sendable {
+    @Logged
     @Api("/users/:id")
-    func getUser(id: Int) async throws -> User
+    func user(id: Int) async throws -> User
 }
+
+let users: UsersRepository = UsersRepositoryClient(client: AppClient(baseURL: "https://api.ejemplo.com"))
+let paco = try await users.user(id: 7)          // GET /users/7
 ```
 
-> Estado: iteración 1 (declarar y llamar).
+La librería se presenta por tamaño de app, con *progressive disclosure*: quien está en un nivel no
+necesita los conceptos del siguiente.
+
+- **Nivel 1 · un dominio**: declarar y llamar, probar sin red, defaults seguros.
+- **Nivel 2 · varios servicios**: ``Environment`` desde `.xcconfig` + Info.plist, interceptores,
+  transformadores, opciones de petición y grupos.
+- **Nivel 3 · big app**: streams, transferencias, WebSocket y la seguridad que piden los bancos.
+
+Empieza por <doc:QuickStart>. Una regla de bolsillo para elegir pieza: *interceptor si tocas HTTP,
+decorador si tocas la llamada, transformador si tocas datos*.
 
 ## Topics
 
+### Primeros pasos
+
+- <doc:QuickStart>
+- <doc:Levels>
+
 ### Declarar un API
 
-- ``Repository()``
-- ``Api(_:method:)``
+- ``Repository(service:)``
+- ``Api(_:method:timeout:kind:)``
+- ``ApiKind``
 - ``Path``
 - ``Query``
 - ``Header``
 - ``Body``
+- ``Headers(_:)``
+- ``BaseURL(_:)``
+- ``KeyMapping(_:dates:)``
 
 ### Cliente y entornos
 
 - ``AppClient``
+- ``Environment``
+- ``ServiceConfiguration``
 - ``HTTPClient``
 - ``URLSessionClient``
 - ``StageProtocol``
@@ -45,10 +68,58 @@ protocol UsersRepository {
 - ``HTTPMethod``
 - ``HTTPError``
 
-### Pruebas
+### Interceptores
 
-- ``MockClient``
-- ``MockResponse``
+- ``Interceptors(_:)``
+- ``Interceptor``
+- ``RequestAdapter``
+- ``ResponseInterceptor``
+- ``AuthInterceptor``
+- ``TokenProvider``
+- ``CommonHeaders``
+- ``RequestLogger``
+
+### Transformadores
+
+- ``Transformer``
+- ``Transform(_:)``
+- ``Unwrap(_:)``
+- ``ErrorTransform(_:)``
+
+### Opciones de petición
+
+- ``Retries(_:backoff:)``
+- ``CacheFor(_:)``
+- ``SingleFlight()``
+- ``Idempotent()``
+- ``RequestOptions``
+- ``RetryPolicy``
+
+### Streams, transferencias y WebSocket
+
+- ``StreamingResponse``
+- ``ServerEvent``
+- ``Download``
+- ``Upload``
+- ``DownloadQueue``
+- ``Multipart``
+- ``FileUpload``
+- ``Socket(_:)``
+- ``Socket``
+
+### Seguridad
+
+- ``SecurityPolicy``
+- ``SecurityAudit``
+- ``KeychainStore``
+- ``KeychainTokenProvider``
+- ``PublicKeyPin``
+- ``PinningPolicy``
+- ``DPoPInterceptor``
+- ``SignedRequestInterceptor``
+- ``AppAttestInterceptor``
+- ``AuthorizationFlow``
+- ``OpenIDDiscovery``
 
 ### Versión
 

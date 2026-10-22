@@ -4,7 +4,7 @@ import Foundation
 /// a partir de la firma del requisito y de `@Api`; el usuario no la construye a mano.
 ///
 /// No es `Sendable` porque transporta los valores reales de los parámetros; por eso
-/// ``AppClient/perform(_:isolation:)-swift.method`` corre en el aislamiento de quien llama.
+/// ``AppClient/perform(_:unwrapping:isolation:)`` corre en el aislamiento de quien llama.
 public struct Endpoint {
 
     /// Contenido del body antes de codificarse.

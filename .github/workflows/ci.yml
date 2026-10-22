@@ -31,6 +31,8 @@ jobs:
         run: swift build -v
       - name: Test
         run: swift test
+      - name: Documentation (broken symbol links fail the build)
+        run: swift package generate-documentation --target JadeAPI --warnings-as-errors
       - name: Build and test the Login example
         run: |
           swift build --package-path Examples/Login

@@ -16,18 +16,18 @@ let users: UsersRepository = UsersRepositoryClient(client: AppClient(baseURL: "h
 let paco = try await users.getUser(id: 7)        // GET /users/7, con tres reintentos
 ```
 
-Retrofit para Swift, con una diferencia: la política de cada endpoint (`@Retry`, `@Cached`,
-`@Authenticated`, `@Logged`) se apila sobre el mismo método y la escribe quien usa la librería.
+Retrofit para Swift, con una diferencia: la política de cada endpoint (`@Retries`, `@CacheFor`,
+`@Logged`, los tuyos) se apila sobre el mismo método y la escribe quien usa la librería.
 Está construida sobre [AnnotationSwift](https://github.com/fsaldivar-dev/experimental-annotation-swift).
 
-> Estado: iteración 3 (streams, transferencias, WebSocket) sobre los niveles 1 y 2. Ver [docs/ROADMAP.md](docs/ROADMAP.md).
+> Estado: 0.5.0. Niveles 1 y 2 completos, transporte avanzado y la seguridad del nivel 3. Lo que falta, y lo que se prometió y no está, en [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick Start
 
-**1. Dependencia** (Swift 6.2+). Mientras no haya release, por rama:
+**1. Dependencia** (Swift 6.2+):
 
 ```swift
-.package(url: "https://github.com/fsaldivar-dev/jade-api.git", branch: "main")
+.package(url: "https://github.com/fsaldivar-dev/jade-api.git", from: "0.5.0")
 // target: .product(name: "JadeAPI", package: "jade-api")
 ```
 
@@ -152,7 +152,24 @@ protocol UsersRepository {
 }
 ```
 
-Orden de arriba abajo: `Retry` envuelve a `Logged`, que envuelve la petición. Sin el plugin, declara el marcador (`@attached(peer) macro Retry(_ attempts: Int) = #externalMacro(module: "AnnotationMacros", type: "MarkerMacro")`) o usa `@Decorate(Retry(3), Logged())`. Los decoradores de red incluidos (`@Retry` consciente de idempotencia, `@Timeout`, `@Cached`, `@SingleFlight`) llegan en la iteración 2.
+Orden de arriba abajo: `Retry` envuelve a `Logged`, que envuelve la petición. Sin el plugin, declara el marcador (`@attached(peer) macro Retry(_ attempts: Int) = #externalMacro(module: "AnnotationMacros", type: "MarkerMacro")`) o usa `@Decorate(Retry(3), Logged())`. Las políticas de red (`@Retries`, `@CacheFor`, `@SingleFlight`, `timeout:`) no son decoradores sino [opciones de petición](#opciones-de-petición) que aplica el cliente.
+
+## Ajustes del repositorio: base, headers y claves
+
+Tres atributos sobre el protocolo evitan repetir lo mismo en cada endpoint o en cada cliente:
+
+```swift
+@Repository(service: "users")
+@BaseURL("/v2")                                        // prefijo sobre la base del servicio; una URL completa la sustituye
+@Headers(["X-Client": "ios", "Accept-Language": "es-MX"])
+@KeyMapping(.snakeCase, dates: .iso8601)               // full_name ↔ fullName, fechas ISO, sin tocar el decoder del cliente
+protocol UsersRepository: Sendable {
+    @Headers(["X-Trace": "users"])                     // solo en este endpoint; gana sobre los del repositorio
+    @Api("/users/:id") func user(id: Int) async throws -> User
+}
+```
+
+Prioridad de headers: endpoint → repositorio → cliente/servicio. Un header con nombre de credencial y valor fijo dispara el aviso de `SecurityAudit` en Debug. `@BaseURL` y `@KeyMapping` solo van sobre el protocolo (sobre un requisito es error de compilación); en código, `client.with(base:)`, `with(headers:)` y `with(keys:dates:)` hacen lo mismo para un `AppClient`.
 
 ## Nivel 2: varios servicios
 
@@ -445,7 +462,7 @@ swift test --package-path Examples/Login           # lógica contra los fixtures
 
 ```swift
 public func user(id: Int) async throws -> User {
-    var __headers: [String: String] = [:]
+    let __headers: [String: String] = [:]
     let __endpoint = JadeAPI.Endpoint(name: "user(id:)", method: .get, path: "/users/:id",
                                       pathParameters: ["id": JadeAPI.ParameterValue.text(id) ?? ""],
                                       query: [], headers: __headers, body: nil)
@@ -454,6 +471,11 @@ public func user(id: Int) async throws -> User {
 ```
 
 Tres capas, una regla: **interceptor** si tocas HTTP, **decorador** si tocas la llamada, **transformador** si tocas datos. Las opciones (`@Retries`, `@CacheFor`, `@SingleFlight`, `timeout`) viven con el HTTP, por eso las aplica el cliente y no un decorador: así funcionan con cualquier tipo de retorno y respetan `Sendable`.
+
+## Documentación
+
+Catálogo DocC con Quick Start y los niveles: `swift package generate-documentation --target JadeAPI`, o
+*Product → Build Documentation* en Xcode.
 
 ## Requisitos
 

@@ -37,13 +37,7 @@ public struct RepositoryMacro: PeerMacro {
 
         let name = proto.name.text
         let body = methods.isEmpty ? "" : "\n\n" + methods.joined(separator: "\n\n")
-        // @Interceptors(A(), B()) a nivel de protocolo → se añaden al cliente en el init.
-        var assignment = "self.client = client"
-        if let interceptors = Attributes.find("Interceptors", in: proto.attributes),
-           case .argumentList(let arguments)? = interceptors.arguments, !arguments.isEmpty {
-            let list = arguments.map { $0.expression.trimmedDescription }.joined(separator: ", ")
-            assignment = "self.client = client.with(interceptors: [\(list)])"
-        }
+        let assignment = "self.client = " + Self.clientChain(for: proto, in: context)
         let serviceLiteral = service.map { "\"\($0)\"" } ?? "JadeAPI.Environment.defaultService"
         return [DeclSyntax(stringLiteral: """
         @AnnotationSwift.Decorable
@@ -84,7 +78,41 @@ public struct RepositoryMacro: PeerMacro {
     }
 
     /// Atributos que @Repository consume y no copia al método generado.
-    static let consumedAttributes: Set<String> = ["Api", "Socket", "Transform", "Unwrap", "ErrorTransform", "Interceptors", "Retries", "CacheFor", "SingleFlight", "Idempotent"]
+    static let consumedAttributes: Set<String> = ["Api", "Socket", "Transform", "Unwrap", "ErrorTransform", "Interceptors", "Retries", "CacheFor", "SingleFlight", "Idempotent", "Headers", "BaseURL", "KeyMapping"]
+
+    /// Lo que el `init(client:)` generado hace con el cliente recibido, de afuera hacia adentro:
+    /// `@BaseURL` → `@Headers` → `@KeyMapping` → `@Interceptors`. Sin atributos, el cliente tal cual.
+    static func clientChain(for proto: ProtocolDeclSyntax, in context: some MacroExpansionContext) -> String {
+        var chain = "client"
+        if let base = Attributes.find("BaseURL", in: proto.attributes), let literal = stringArgument(of: base, in: context) {
+            if literal.hasPrefix("/") || literal.hasPrefix("https://") || literal.hasPrefix("http://") {
+                chain += ".with(base: \"\(literal)\")"
+            } else {
+                context.error(base, id: "baseURL", "@BaseURL expects a path prefix (\"/v2\") or a full URL (\"https://…\")")
+            }
+        }
+        if let headers = Attributes.find("Headers", in: proto.attributes), let expression = firstArgument(of: headers) {
+            chain += ".with(headers: \(expression))"
+        }
+        if let mapping = Attributes.find("KeyMapping", in: proto.attributes), case .argumentList(let arguments)? = mapping.arguments, !arguments.isEmpty {
+            let list = arguments.map { argument in
+                argument.label == nil ? "keys: \(argument.expression.trimmedDescription)" : argument.trimmedDescription.trimmingTrailingComma()
+            }.joined(separator: ", ")
+            chain += ".with(\(list))"
+        }
+        if let interceptors = Attributes.find("Interceptors", in: proto.attributes),
+           case .argumentList(let arguments)? = interceptors.arguments, !arguments.isEmpty {
+            let list = arguments.map { $0.expression.trimmedDescription }.joined(separator: ", ")
+            chain += ".with(interceptors: [\(list)])"
+        }
+        return chain
+    }
+
+    /// Primer argumento de un atributo, como texto.
+    static func firstArgument(of attribute: AttributeSyntax) -> String? {
+        guard case .argumentList(let list)? = attribute.arguments, let first = list.first else { return nil }
+        return first.expression.trimmedDescription
+    }
 
     // MARK: - Un método por requisito
 
@@ -141,11 +169,19 @@ public struct RepositoryMacro: PeerMacro {
             return nil
         }
 
+        for name in ["BaseURL", "KeyMapping"] {
+            if let misplaced = Attributes.find(name, in: function.attributes) {
+                context.error(misplaced, id: "protocolOnly", "@\(name) applies to the whole repository: move it onto the protocol")
+                return nil
+            }
+        }
+
         // Construcción del Endpoint.
         let signature = function.name.text + "(" + function.signature.parameterClause.parameters.map { "\($0.firstName.text):" }.joined() + ")"
         var statements: [String] = []
         let headerParameters = parameters.filter { $0.kind == .header }
-        statements.append("\(headerParameters.isEmpty && !hasIdempotent ? "let" : "var") __headers: [String: String] = [:]")
+        let staticHeaders = Attributes.find("Headers", in: function.attributes).flatMap(Self.firstArgument) ?? "[:]"
+        statements.append("\(headerParameters.isEmpty && !hasIdempotent ? "let" : "var") __headers: [String: String] = \(staticHeaders)")
         if hasIdempotent {
             statements.append("__headers[\"Idempotency-Key\"] = Foundation.UUID().uuidString")
         }

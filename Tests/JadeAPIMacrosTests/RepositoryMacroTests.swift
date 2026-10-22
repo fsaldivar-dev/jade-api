@@ -12,6 +12,9 @@ let macros: [String: Macro.Type] = [
     "ErrorTransform": RepositoryAttributeMacro.self,
     "Retries": RepositoryAttributeMacro.self,
     "Idempotent": RepositoryAttributeMacro.self,
+    "Headers": RepositoryAttributeMacro.self,
+    "BaseURL": RepositoryAttributeMacro.self,
+    "KeyMapping": RepositoryAttributeMacro.self,
 ]
 
 final class RepositoryMacroTests: XCTestCase {
@@ -182,6 +185,115 @@ final class RepositoryMacroTests: XCTestCase {
                 }
             }
             """,
+            macros: macros
+        )
+    }
+
+    func testRepositoryAttributesChainTheClient() {
+        assertMacroExpansion(
+            """
+            @Repository
+            @BaseURL("/v2")
+            @Headers(["X-Client": "ios"])
+            @KeyMapping(.snakeCase, dates: .iso8601)
+            @Interceptors(Trace(name: "repo"))
+            protocol AccountsRepository: Sendable {
+                @Headers(["X-Trace": "create"])
+                @Api("/accounts", method: .post)
+                func create(fullName: String) async throws -> Account
+            }
+            """,
+            expandedSource: """
+            protocol AccountsRepository: Sendable {
+                func create(fullName: String) async throws -> Account
+            }
+
+            @AnnotationSwift.Decorable
+            struct AccountsRepositoryClient: AccountsRepository, Sendable {
+                /// Servicio del ``Environment`` al que pertenece este repositorio.
+                static let service: String = JadeAPI.Environment.defaultService
+
+                let client: JadeAPI.AppClient
+
+                init(client: JadeAPI.AppClient) {
+                    self.client = client.with(base: "/v2").with(headers: ["X-Client": "ios"]).with(keys: .snakeCase, dates: .iso8601).with(interceptors: [Trace(name: "repo")])
+                }
+
+                /// Cliente del servicio `default` resuelto por el entorno.
+                init(environment: JadeAPI.Environment) throws {
+                    self.init(client: try environment.client(for: Self.service))
+                }
+
+                /// Fábrica: `AccountsRepositoryClient.live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> AccountsRepositoryClient {
+                    try AccountsRepositoryClient(environment: environment)
+                }
+
+                func create(fullName: String) async throws -> Account {
+                    let __headers: [String: String] = ["X-Trace": "create"]
+                    let __endpoint = JadeAPI.Endpoint(name: "create(fullName:)", method: .post, path: "/accounts", pathParameters: [:], query: [], headers: __headers, body: .fields([("fullName", fullName)]))
+                    return try await client.perform(__endpoint)
+                }
+            }
+
+            extension AccountsRepository where Self == AccountsRepositoryClient {
+                /// Implementación real resuelta por el entorno: `let repo: AccountsRepository = try .live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> Self {
+                    try AccountsRepositoryClient(environment: environment)
+                }
+            }
+            """,
+            macros: macros
+        )
+    }
+
+    func testBaseURLOnRequirementIsRejected() {
+        assertMacroExpansion(
+            """
+            @Repository
+            protocol BadRepository: Sendable {
+                @BaseURL("/v2")
+                @Api("/ping")
+                func ping() async throws -> String
+            }
+            """,
+            expandedSource: """
+            protocol BadRepository: Sendable {
+                func ping() async throws -> String
+            }
+
+            @AnnotationSwift.Decorable
+            struct BadRepositoryClient: BadRepository, Sendable {
+                /// Servicio del ``Environment`` al que pertenece este repositorio.
+                static let service: String = JadeAPI.Environment.defaultService
+
+                let client: JadeAPI.AppClient
+
+                init(client: JadeAPI.AppClient) {
+                    self.client = client
+                }
+
+                /// Cliente del servicio `default` resuelto por el entorno.
+                init(environment: JadeAPI.Environment) throws {
+                    self.init(client: try environment.client(for: Self.service))
+                }
+
+                /// Fábrica: `BadRepositoryClient.live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> BadRepositoryClient {
+                    try BadRepositoryClient(environment: environment)
+                }
+            }
+
+            extension BadRepository where Self == BadRepositoryClient {
+                /// Implementación real resuelta por el entorno: `let repo: BadRepository = try .live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> Self {
+                    try BadRepositoryClient(environment: environment)
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(message: "@BaseURL applies to the whole repository: move it onto the protocol", line: 3, column: 5),
+            ],
             macros: macros
         )
     }
