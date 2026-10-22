@@ -139,9 +139,9 @@ los conceptos del siguiente.
 - **Nivel 2 · varios dominios** — hecho. `@Repository(service:)`, `Environment` desde `.xcconfig` +
   Info.plist (el estándar de Xcode; se descartó un archivo de configuración propio), capas
   entorno → servicio → repositorio → endpoint, overrides solo en Debug, mocks por servicio.
-- **Nivel 3 · big app** — pendiente. Módulos que solo declaran e inyectan el `Environment`;
-  `KeychainTokenProvider`, pinning con rotación, DPoP o mTLS, firmas RFC 9421, App Attest, PAR + PKCE
-  con discovery OIDC, `SECURITY.md` con el mapeo MASVS; después, generador desde OpenAPI.
+- **Nivel 3 · big app** — seguridad hecha: `KeychainTokenProvider`, pinning con respaldo y caducidad,
+  DPoP, firmas RFC 9421, App Attest y `SECURITY.md` con el mapeo MASVS. Pendientes: mTLS, PAR + PKCE
+  con discovery OIDC, métricas de transporte, reconexión de sockets, y el generador desde OpenAPI.
 
 La iteración 3 de transporte se construye después del nivel 2 y antes del nivel 3.
 

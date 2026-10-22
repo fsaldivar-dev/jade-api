@@ -361,6 +361,35 @@ chat.close()
 
 `String` viaja como texto, `Data` como binario y cualquier `Codable` como JSON. `https://` se convierte en `wss://` (y `http://` en `ws://`, solo en Debug). No reconecta solo: si la conexión cae, `messages` termina con error y tú decides. Para pruebas, `JadeTesting` trae `LocalWebSocketServer`, un servidor eco real sobre Network.framework, que es con lo que se prueba la librería.
 
+## Nivel 3: seguridad bancaria
+
+Todo vive detrás de protocolos: lo real (Keychain, TLS, Secure Enclave, DeviceCheck) en dispositivo; dobles en memoria para pruebas y simulador. El detalle y el mapeo MASVS están en [SECURITY.md](SECURITY.md).
+
+```swift
+let keychain = SecItemKeychainStore(service: "mx.banco.app", protection: .biometryCurrentSet)
+let tokens = KeychainTokenProvider(store: keychain) { refresh in try await auth.refresh(refresh) }
+let deviceKey = try P256SigningKey.load(from: keychain)            // Secure Enclave si el dispositivo lo tiene
+
+let environment = try Environment(bundle: .main)                    // pins por servicio en el Info.plist
+var secured = environment
+secured.interceptors = [
+    AppAttestInterceptor(attestor: DeviceCheckAttestor(), challenges: server, store: keychain),  // solo tu app, sin modificar
+    DPoPInterceptor(key: deviceKey, tokens: tokens),               // token atado al dispositivo (FAPI 2.0)
+    SignedRequestInterceptor(key: deviceKey, coveredHeaders: ["idempotency-key"]),  // RFC 9421 + Content-Digest
+]
+```
+
+| Pieza | Estándar | Qué hace |
+| --- | --- | --- |
+| `KeychainTokenProvider` | MASVS-STORAGE/AUTH | Tokens en Keychain atados al dispositivo y, opcionalmente, a la biometría actual; refresca al caducar |
+| `PinningPolicy` + `URLSessionClient.pinned` | MASVS-NETWORK-2 | Pins `sha256/` de clave pública por host, con respaldo y caducidad; en el Info.plist como `pins` y `pinsExpire` |
+| `DPoPInterceptor` | RFC 9449, FAPI 2.0 | Prueba ES256 por petición con la clave del dispositivo; `Authorization: DPoP`; reintento con `DPoP-Nonce` |
+| `SignedRequestInterceptor` | RFC 9421, RFC 9530 | Firma método, URI, `Content-Digest`, `created`, `nonce` y los headers que elijas |
+| `AppAttestInterceptor` | App Attest | Atesta la clave una vez con el challenge del servidor y asierta cada petición |
+| `P256SigningKey` | CryptoKit | Clave P-256 en Secure Enclave cuando existe; persistida vía `KeychainStore` |
+
+Lo que no está aquí porque no es de la capa de red: anti-tampering, ofuscación, detección de jailbreak y el flujo de login (PKCE + PAR en el navegador del sistema). Y lo que decide la seguridad de verdad vive en tu servidor: verificar cada prueba, cada firma y cada `Idempotency-Key`.
+
 ## Defaults seguros (nivel 1)
 
 Sin configurar nada, el cliente ya cumple lo que un auditor móvil revisa primero (OWASP MASVS-NETWORK y STORAGE, PCI DSS 6.5):

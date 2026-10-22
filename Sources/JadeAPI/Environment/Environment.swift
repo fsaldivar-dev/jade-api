@@ -11,13 +11,17 @@ public struct ServiceConfiguration: Sendable {
     public var interceptors: [any Interceptor]
     /// Transporte propio (mock de un solo servicio, sesión con pinning). `nil` usa el del entorno.
     public var transport: (any HTTPClient)?
+    /// Pins de clave pública del host del servicio. Con pins y sin `transport`, el entorno crea un
+    /// `URLSessionClient.pinned` para el servicio.
+    public var pins: PinningPolicy.HostPins?
 
-    public init(baseURL: URL, headers: [String: String] = [:], options: RequestOptions = .none, interceptors: [any Interceptor] = [], transport: (any HTTPClient)? = nil) {
+    public init(baseURL: URL, headers: [String: String] = [:], options: RequestOptions = .none, interceptors: [any Interceptor] = [], transport: (any HTTPClient)? = nil, pins: PinningPolicy.HostPins? = nil) {
         self.baseURL = baseURL
         self.headers = headers
         self.options = options
         self.interceptors = interceptors
         self.transport = transport
+        self.pins = pins
     }
 
     public init(baseURL: String, headers: [String: String] = [:], options: RequestOptions = .none, interceptors: [any Interceptor] = [], transport: (any HTTPClient)? = nil) throws {
@@ -100,9 +104,17 @@ public struct Environment: Sendable {
     /// servicio, opciones del servicio como base, transporte del servicio o del entorno.
     public func client(for service: String = Environment.defaultService) throws -> AppClient {
         guard let configuration = services[service] else { throw EnvironmentError.missingService(service) }
+        let serviceTransport: any HTTPClient
+        if let transport = configuration.transport {
+            serviceTransport = transport
+        } else if let pins = configuration.pins, let host = configuration.baseURL.host {
+            serviceTransport = URLSessionClient.pinned(PinningPolicy(hosts: [host: pins]))
+        } else {
+            serviceTransport = transport
+        }
         var client = AppClient(
             baseURL: configuration.baseURL,
-            transport: configuration.transport ?? transport,
+            transport: serviceTransport,
             interceptors: interceptors + configuration.interceptors,
             decoder: decoder,
             encoder: encoder,

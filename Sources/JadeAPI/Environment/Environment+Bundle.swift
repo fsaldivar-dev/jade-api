@@ -24,8 +24,9 @@ extension Environment {
     /// ```
     ///
     /// Claves por servicio: `baseURL` (obligatoria), `headers` (diccionario), `timeout` y `cache`
-    /// (segundos), `retries` (intentos). Un header con nombre de credencial falla: los secretos no
-    /// viven en la configuración.
+    /// (segundos), `retries` (intentos), `pins` (string con pins `sha256/…` separados por espacios) y
+    /// `pinsExpire` (fecha ISO 8601 tras la cual el pinning deja de aplicarse). Un header con nombre
+    /// de credencial falla: los secretos no viven en la configuración.
     public init(bundle: Bundle = .main, key: String = "JadeAPI", security: SecurityPolicy = .default) throws {
         guard let raw = bundle.object(forInfoDictionaryKey: key) as? [String: Any] else {
             throw EnvironmentError.missingConfiguration(key: key)
@@ -59,7 +60,15 @@ extension Environment {
         if let seconds = seconds(fields["timeout"]) { options.timeout = .seconds(seconds) }
         if let seconds = seconds(fields["cache"]) { options.cache = .seconds(seconds) }
         if let attempts = fields["retries"].flatMap(integer) { options.retry = RetryPolicy(attempts: attempts) }
-        return ServiceConfiguration(baseURL: url, headers: (fields["headers"] as? [String: String]) ?? [:], options: options)
+        var pins: PinningPolicy.HostPins?
+        if let text = fields["pins"] as? String {
+            let list = text.split(whereSeparator: { $0 == " " || $0 == "," }).map { PublicKeyPin(String($0)) }
+            if !list.isEmpty {
+                let expires = (fields["pinsExpire"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
+                pins = PinningPolicy.HostPins(list, expires: expires)
+            }
+        }
+        return ServiceConfiguration(baseURL: url, headers: (fields["headers"] as? [String: String]) ?? [:], options: options, pins: pins)
     }
 
     private static func seconds(_ value: Any?) -> Double? {

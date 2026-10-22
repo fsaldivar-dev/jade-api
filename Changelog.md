@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - Unreleased
+Nivel 3: seguridad bancaria.
+
+### Added
+- `KeychainStore` (`SecItemKeychainStore` con `ThisDeviceOnly` y `biometryCurrentSet`; `InMemoryKeychainStore`),
+  `StoredTokens`, `KeychainTokenProvider` (refresca al caducar; se integra con `AuthInterceptor`).
+- Pinning: `PublicKeyPin` (SHA-256 del SPKI, RSA 2048/4096 y EC P-256/P-384), `PinningPolicy` con respaldo,
+  caducidad y subdominios, `PinnedSessionDelegate`, `URLSessionClient.pinned`, `pins`/`pinsExpire` por
+  servicio en el Info.plist y transporte con pinning automático en `Environment.client(for:)`.
+- DPoP (RFC 9449): `SigningKey`, `P256SigningKey` (Secure Enclave si existe; `load(from:)` persistente),
+  `DPoPProof`, `DPoPInterceptor` con `DPoP-Nonce`.
+- Firmas HTTP (RFC 9421 + Content-Digest RFC 9530): `SignedRequestInterceptor`.
+- App Attest: `Attestor`, `ChallengeProvider`, `DeviceCheckAttestor`, `AppAttestInterceptor`.
+- `SECURITY.md`: modelo de amenaza, mapeo MASVS 2.0, responsabilidades del servidor.
+
 ## [0.3.0] - Unreleased
 Iteración 3: transporte avanzado.
 
