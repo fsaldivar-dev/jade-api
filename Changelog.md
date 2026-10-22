@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - Unreleased
+Iteración 2: el pipeline.
+
+### Added
+- Interceptores: `Interceptor` (`intercept(request, next:)`), atajos `RequestAdapter` y
+  `ResponseInterceptor`, cadena en `AppClient(interceptors:)`, `@Interceptors(...)` por repositorio.
+  Incluidos: `CommonHeaders`, `RequestLogger` (línea o cURL, con redacción) y `AuthInterceptor`
+  (`TokenProvider`, refresh único ante 401 compartido entre peticiones en vuelo).
+- Transformadores: `Transformer` (DTO → dominio verificado por tipos), `@Transform(Mapper.self)`,
+  `@Unwrap("data.items")` por repositorio o endpoint, `@ErrorTransform(Mapper.self)`.
+- Opciones de petición aplicadas por el cliente: `@Retries(n, backoff:)` (transporte, 5xx, 408, 429,
+  `Retry-After`), `@CacheFor(ttl)`, `@SingleFlight`, `@Api(timeout:)` con `HTTPError.timeout`;
+  `AppClient.options` como base; `Request.options` visible para interceptores.
+- Grupos: `client.group(maxConcurrent:)` en orden y fail-fast, `groupSettled` con `Result` y progreso,
+  `client.all(...)` heterogéneo con parameter packs y cancelación conjunta.
+- `JadeRegistry`: plugin de JadeAPI para registrar decoradores `@Annotation` sin depender del núcleo.
+- Ejemplo Login ampliado con el catálogo (toda la fase 2 en una pantalla).
+
+### Changed
+- Las peticiones del `MockClient` se registran al recibirse, antes de la latencia.
+
 ## [0.1.0] - Unreleased
 Iteración 1: declarar y llamar.
 

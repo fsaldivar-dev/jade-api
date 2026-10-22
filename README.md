@@ -18,7 +18,7 @@ Retrofit para Swift, con una diferencia: la política de cada endpoint (`@Retry`
 `@Authenticated`, `@Logged`) se apila sobre el mismo método y la escribe quien usa la librería.
 Está construida sobre [AnnotationSwift](https://github.com/fsaldivar-dev/experimental-annotation-swift).
 
-> Estado: iteración 1 (declarar y llamar). Ver [docs/ROADMAP.md](docs/ROADMAP.md).
+> Estado: iteración 2 (pipeline: interceptores, transformadores, opciones, grupos). Ver [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick Start
 
@@ -150,6 +150,94 @@ protocol UsersRepository {
 
 Orden de arriba abajo: `Retry` envuelve a `Logged`, que envuelve la petición. Sin el plugin, declara el marcador (`@attached(peer) macro Retry(_ attempts: Int) = #externalMacro(module: "AnnotationMacros", type: "MarkerMacro")`) o usa `@Decorate(Retry(3), Logged())`. Los decoradores de red incluidos (`@Retry` consciente de idempotencia, `@Timeout`, `@Cached`, `@SingleFlight`) llegan en la iteración 2.
 
+## Interceptores
+
+Tocan el HTTP crudo. Una función y un `next`, igual que un decorador:
+
+```swift
+struct SignRequest: Interceptor {
+    func intercept(_ request: Request, next: Next) async throws -> Response {
+        var request = request
+        request.headers["X-Signature"] = sign(request.body)
+        return try await next(request)
+    }
+}
+
+let client = AppClient(stage: .prod, interceptors: [
+    AuthInterceptor(tokens: keychain),       // Authorization + refresh único ante 401, aunque haya N en vuelo
+    CommonHeaders(["Accept-Language": "es-MX"]),
+    RequestLogger(.curl),                    // redacta Authorization y Cookie
+])
+```
+
+El primero es el más externo. `RequestAdapter` (solo antes) y `ResponseInterceptor` (solo después) son atajos de una función. Por repositorio, `@Interceptors(SignRequest())` sobre el `protocol` los añade por dentro de los del cliente.
+
+## Transformadores
+
+Tocan los datos, con tipos verificados por el compilador:
+
+```swift
+struct UserMapper: Transformer {
+    func transform(_ dto: UserDTO) throws -> User { User(id: dto.id, name: dto.full_name) }
+}
+
+@Repository
+@Unwrap("data")                               // la API envuelve todo en {data: …}
+@ErrorTransform(APIErrorMapper.self)          // body de error → error de dominio
+protocol UsersRepository: Sendable {
+    @Transform(UserMapper.self)
+    @Api("/users/:id")
+    func user(id: Int) async throws -> User     // la red manda UserDTO; tú recibes User
+
+    @Unwrap("data.items")                     // el del requisito gana
+    @Api("/users")
+    func all() async throws -> [UserDTO]
+}
+```
+
+`@Unwrap` admite rutas de claves. Si el body de error no decodifica como `Input`, sube el `HTTPError` original.
+
+## Opciones de petición
+
+Se declaran sobre el endpoint o el repositorio y las aplica el cliente justo antes del transporte:
+
+```swift
+@Repository
+@Retries(3, backoff: .exponential(.milliseconds(200)))   // transporte, 5xx, 408, 429; respeta Retry-After
+protocol CatalogRepository: Sendable {
+    @CacheFor(.seconds(60))                               // 2xx en memoria por verbo + URL + body
+    @Api("/catalog")
+    func catalog() async throws -> [Product]
+
+    @SingleFlight                                         // idénticas en vuelo comparten respuesta
+    @Api("/catalog/:id", timeout: .seconds(2))            // HTTPError.timeout; un timeout también se reintenta
+    func product(id: Int) async throws -> Product
+}
+```
+
+Nunca se reintenta un 4xx de negocio ni un error de decodificación. `AppClient.options` da los defaults del cliente; el repositorio y el endpoint ganan campo a campo.
+
+## Grupos de peticiones
+
+La concurrencia es de quien llama, no de quien declara:
+
+```swift
+// N iguales, con límite y resultados en orden; si una falla, cancela el resto
+let users = try await client.group(maxConcurrent: 3) { group in
+    for id in ids { group.add { try await repo.user(id: id) } }
+}
+
+// igual, pero sin lanzar: un Result por operación
+let settled = await client.groupSettled(maxConcurrent: 3, progress: { print($0.fractionCompleted) }) { group in … }
+
+// pocas distintas, cada una con su tipo
+let (featured, offers, categories) = try await client.all(
+    { try await catalog.featured() }, { try await catalog.offers() }, { try await catalog.categories() }
+)
+```
+
+Para dos o tres distintas sin límite, `async let` del lenguaje basta.
+
 ## Concurrencia
 
 Declara los repositorios como `protocol X: Sendable`. El cliente generado es `Sendable` (solo guarda un `AppClient`), y así el existencial `any X` puede vivir en un `@MainActor` y llamarse desde cualquier aislamiento. Las llamadas corren en el aislamiento de quien llama.
@@ -160,7 +248,7 @@ Declara los repositorios como `protocol X: Sendable`. El cliente generado es `Se
 
 ## Ejemplo
 
-[`Examples/Login`](Examples/Login): app SwiftUI con selector de entorno (dev, prod, mock), login con repositorios declarados, `@Logged @Retry(2)` registrados con `@Annotation` y el plugin, y panel con lo que hicieron los decoradores.
+[`Examples/Login`](Examples/Login): app SwiftUI con selector de entorno (dev, prod, mock), login con repositorios declarados, `@Logged @Retry(2)` registrados con `@Annotation` y el plugin, y un catálogo que usa toda la fase 2: `AuthInterceptor` + `RequestLogger`, `@Unwrap` + `@Transform` + `@ErrorTransform`, `@Retries` (la primera carga recibe un 503), `@CacheFor`, `@SingleFlight`, `timeout`, `client.all` y `groupSettled`.
 
 ```bash
 swift run --package-path Examples/Login
@@ -180,7 +268,7 @@ public func user(id: Int) async throws -> User {
 }
 ```
 
-Tres capas, una regla, para lo que viene: **interceptor** si tocas HTTP, **decorador** si tocas la llamada, **transformador** si tocas datos.
+Tres capas, una regla: **interceptor** si tocas HTTP, **decorador** si tocas la llamada, **transformador** si tocas datos. Las opciones (`@Retries`, `@CacheFor`, `@SingleFlight`, `timeout`) viven con el HTTP, por eso las aplica el cliente y no un decorador: así funcionan con cualquier tipo de retorno y respetan `Sendable`.
 
 ## Requisitos
 

@@ -38,8 +38,13 @@ struct LoginView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Label(profile.name, systemImage: "person.crop.circle.fill").font(.title2)
                         Text("Rol: \(profile.role)").foregroundStyle(.secondary)
-                        Button("Cerrar sesión") { Task { await model.logout() } }
+                        HStack {
+                            Button("Cerrar sesión") { Task { await model.logout() } }
+                            Button(model.loadingCatalog ? "Cargando…" : "Recargar catálogo") { Task { await model.loadCatalog() } }
+                                .disabled(model.loadingCatalog)
+                        }
                     }
+                    CatalogView(model: model)
                 } else {
                     Form {
                         TextField("Usuario", text: $model.user)
@@ -65,5 +70,40 @@ struct LoginView: View {
                     Text("Decoradores: @Logged @Retry(2)").font(.caption).padding(4)
                 }
         }
+    }
+}
+
+
+/// Lo que cargó la fase 2: all(…) para destacados + categorías, groupSettled para los detalles,
+/// @CacheFor en destacados, @Retries del protocolo (la primera carga recibe un 503 y reintenta),
+/// @Unwrap + @Transform para pasar de DTO a Product, y @ErrorTransform para el producto 99.
+struct CatalogView: View {
+    let model: SessionModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !model.categories.isEmpty {
+                Text("Categorías: " + model.categories.joined(separator: " · ")).font(.caption)
+            }
+            ForEach(model.featured) { product in
+                HStack {
+                    Text(product.name)
+                    Spacer()
+                    Text(product.price, format: .currency(code: "MXN")).monospacedDigit()
+                }
+            }
+            if !model.details.isEmpty {
+                Divider()
+                Text("Detalles (grupo, máx. 2 a la vez):").font(.caption).foregroundStyle(.secondary)
+                ForEach(model.details.keys.sorted(), id: \.self) { id in
+                    switch model.details[id]! {
+                    case .success(let product): Text("✓ \(id): \(product.name)").font(.caption)
+                    case .failure(let error): Text("✗ \(id): \(error)").font(.caption).foregroundStyle(.red)
+                    }
+                }
+            }
+            if let error = model.catalogError { Text(error).foregroundStyle(.red) }
+        }
+        .padding(.top, 8)
     }
 }

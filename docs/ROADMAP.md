@@ -10,7 +10,7 @@ mayor costo cognitivo (ver [Decisiones](#decisiones-de-diseño)).
 
 ---
 
-## Iteración 0 · Cimientos
+## Iteración 0 · Cimientos — hecho
 
 **Objetivo:** que un marcador pueda vivir dentro de un `protocol` y que el repo compile contra el núcleo.
 
@@ -24,7 +24,7 @@ mayor costo cognitivo (ver [Decisiones](#decisiones-de-diseño)).
 
 ---
 
-## Iteración 1 · Declarar y llamar (v0.1, MVP)
+## Iteración 1 · Declarar y llamar (v0.1, MVP) — hecho
 
 **Objetivo:** la primera petición en cuatro pasos y veinte líneas. Sin interceptores ni transformadores visibles.
 
@@ -78,9 +78,16 @@ let token = try await login.auth(user: "paco", password: "secreto")
 
 ---
 
-## Iteración 2 · El pipeline (v0.2)
+## Iteración 2 · El pipeline (v0.2) — hecho
 
 **Objetivo:** las tres capas con una regla de bolsillo: *interceptor si tocas HTTP, decorador si tocas la llamada, transformador si tocas datos*.
+
+**Cómo quedó:** los "decoradores de red" (`@Retry`, `@Timeout`, `@Cached`, `@SingleFlight`) se
+implementaron como **opciones de petición** (`@Retries`, `@Api(timeout:)`, `@CacheFor`, `@SingleFlight`)
+que aplica el cliente, no como `Decorator` genéricos: un decorador no puede cancelar ni compartir
+un `Out` no `Sendable`, y esas políticas pertenecen al HTTP. `@Intercept` por endpoint quedó fuera,
+como estaba previsto. `@KeyMapping` se resuelve con el `JSONDecoder` del cliente. Nombres con prefijo
+distinto (`@Retries`, `@CacheFor`) para no chocar con decoradores del usuario llamados `Retry` o `Cached`.
 
 ### Interceptores
 - `Interceptor`: `intercept(_ request: Request, next: (Request) async throws -> Response) async throws -> Response`.

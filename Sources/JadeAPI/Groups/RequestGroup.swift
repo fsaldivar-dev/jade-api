@@ -8,6 +8,8 @@ public struct GroupProgress: Sendable, Equatable {
 }
 
 /// Acumula las operaciones de un grupo homogéneo. Se construye dentro de `client.group { group in … }`.
+/// El closure de construcción corre en el aislamiento de quien llama (por eso `group` recibe `#isolation`),
+/// así puede leer estado de un `@MainActor`; las operaciones añadidas sí deben ser `@Sendable`.
 public struct RequestGroup<Element: Sendable>: ~Copyable {
     public typealias Operation = @Sendable () async throws -> Element
     var operations: [Operation] = []
@@ -32,6 +34,7 @@ extension AppClient {
     public func group<Element: Sendable>(
         maxConcurrent: Int = 4,
         progress: (@Sendable (GroupProgress) -> Void)? = nil,
+        isolation: isolated (any Actor)? = #isolation,
         _ build: (inout RequestGroup<Element>) -> Void
     ) async throws -> [Element] {
         var group = RequestGroup<Element>()
@@ -46,6 +49,7 @@ extension AppClient {
     public func groupSettled<Element: Sendable>(
         maxConcurrent: Int = 4,
         progress: (@Sendable (GroupProgress) -> Void)? = nil,
+        isolation: isolated (any Actor)? = #isolation,
         _ build: (inout RequestGroup<Element>) -> Void
     ) async -> [Result<Element, any Error>] {
         var group = RequestGroup<Element>()

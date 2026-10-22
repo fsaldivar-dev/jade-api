@@ -40,6 +40,28 @@ enum Fixtures {
             return .json(#"{"id": 1, "name": "\#(user.capitalized)", "role": "\#(user == "admin" ? "admin" : "viewer")"}"#)
         }
         mock.on(.post, "/auth/logout") { _ in .noContent }
+
+        // Catálogo: exige token; la primera carga de destacados falla con 503 para ver @Retries en acción.
+        let featuredCalls = FeaturedCounter()
+        mock.on(.get, "/catalog/featured") { request in
+            guard request.headers["Authorization"]?.hasPrefix("Bearer tok-") == true else { return .status(401) }
+            if featuredCalls.next() == 1 { return .status(503) }
+            return .json(#"{"data": [{"id": 1, "title": "Tornillo M4", "price_cents": 1250}, {"id": 2, "title": "Tuerca M4", "price_cents": 450}, {"id": 3, "title": "Arandela", "price_cents": 120}]}"#)
+        }
+        mock.on(.get, "/catalog/categories") { request in
+            guard request.headers["Authorization"] != nil else { return .status(401) }
+            return .json(#"{"data": ["Fijación", "Herramienta", "Pintura"]}"#)
+        }
+        mock.on(.get, "/catalog/:id") { request in
+            let id = request.path.split(separator: "/").last.map(String.init) ?? "0"
+            guard id != "99" else { return .json(#"{"data": {"code": "NOT_FOUND", "message": "el producto 99 no existe"}}"#, status: 404) }
+            return .json(#"{"data": {"id": \#(id), "title": "Producto \#(id)", "price_cents": \#(Int(id)! * 100)}}"#)
+        }
         return mock
     }()
+}
+
+final class FeaturedCounter: @unchecked Sendable {
+    private let lock = NSLock(); private var count = 0
+    func next() -> Int { lock.lock(); defer { lock.unlock() }; count += 1; return count }
 }
