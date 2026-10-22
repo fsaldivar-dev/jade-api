@@ -11,5 +11,5 @@
 /// Información de la librería. (No se llama `JadeAPI` para no tapar el nombre del módulo.)
 public enum Jade {
     /// Versión de la librería.
-    public static let version = "0.0.1"
+    public static let version = "0.5.0"
 }
