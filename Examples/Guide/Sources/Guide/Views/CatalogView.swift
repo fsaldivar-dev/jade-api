@@ -27,6 +27,8 @@ struct CatalogView: View {
                     Text(product.price, format: .currency(code: "USD")).monospacedDigit()
                 }
             }
+            Divider()
+            SearchField(catalog: catalog)
             if !catalog.details.isEmpty {
                 Divider()
                 Text("Detalles (groupSettled, máx. 2 a la vez):").font(.caption).foregroundStyle(.secondary)
@@ -53,6 +55,26 @@ private struct DetailRow: View {
             Text("✓ \(id): \(product.name)").font(.caption)
         case .failure(let error):
             Text("✗ \(id): \(error)").font(.caption).foregroundStyle(.red)
+        }
+    }
+}
+
+
+/// Búsqueda con @ApiRequest: el texto va en un ProductQuery, no en parámetros sueltos.
+private struct SearchField: View {
+    let catalog: CatalogStore
+    @State private var text = "mascara"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                TextField("Buscar (ProductQuery vía @ApiRequest)", text: $text)
+                    .onSubmit { Task { await catalog.search(text) } }
+                Button("Buscar") { Task { await catalog.search(text) } }
+            }
+            ForEach(catalog.searchResults) { product in
+                Text("· \(product.name)").font(.caption)
+            }
         }
     }
 }

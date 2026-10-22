@@ -124,7 +124,7 @@ struct ApiArguments {
 // MARK: - Parámetros del requisito
 
 struct ParameterInfo {
-    enum Kind { case path, query, header, body, field }
+    enum Kind { case path, query, header, body, field, request }
 
     let label: String          // nombre externo (para path, query, header, campo)
     let name: String           // nombre interno (para leer el valor)
@@ -153,7 +153,31 @@ struct ParameterInfo {
                 }
             }
             if pathNames.contains(label) { return ParameterInfo(label: label, name: internalName, kind: .path, wrapped: false) }
+            // Un parámetro pelón de un tipo tuyo (no primitivo) es un objeto de petición @ApiRequest;
+            // los primitivos y colecciones siguen yendo a query (GET) o campo del body (POST).
+            if let base = baseTypeName(type), !primitiveTypes.contains(base) {
+                return ParameterInfo(label: label, name: internalName, kind: .request, wrapped: false)
+            }
             return ParameterInfo(label: label, name: internalName, kind: carriesBody ? .field : .query, wrapped: false)
         }
+    }
+
+    /// Tipos que se mandan tal cual (query o campo del body); el resto se trata como objeto de petición.
+    static let primitiveTypes: Set<String> = [
+        "Int", "Int8", "Int16", "Int32", "Int64", "UInt", "UInt8", "UInt16", "UInt32", "UInt64",
+        "Double", "Float", "Float16", "Bool", "String", "Substring", "Character",
+        "Date", "UUID", "URL", "Data", "Decimal", "Array", "Set", "Dictionary",
+    ]
+
+    /// Nombre base del tipo, desenvolviendo opcionales y atributos. `[X]` y `[K:V]` → Array/Dictionary.
+    static func baseTypeName(_ type: TypeSyntax) -> String? {
+        var current = type
+        while let attributed = current.as(AttributedTypeSyntax.self) { current = attributed.baseType }
+        if let optional = current.as(OptionalTypeSyntax.self) { return baseTypeName(optional.wrappedType) }
+        if let iuo = current.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) { return baseTypeName(iuo.wrappedType) }
+        if current.is(ArrayTypeSyntax.self) { return "Array" }
+        if current.is(DictionaryTypeSyntax.self) { return "Dictionary" }
+        if let identifier = current.as(IdentifierTypeSyntax.self) { return identifier.name.text }
+        return nil
     }
 }

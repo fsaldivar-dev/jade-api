@@ -1,3 +1,4 @@
+import Foundation
 import JadeAPI
 import Testing
 @testable import GuideCore
@@ -35,6 +36,17 @@ struct CatalogStoreTests {
         }
         #expect(app.catalog.errorMessage == nil)
         #expect(app.mock.received.filter { $0.path == "/products" }.count == 2)   // 503 + reintento; luego caché
+    }
+
+    @Test("search con @ApiRequest manda q como query y devuelve resultados")
+    func searchRequestObject() async throws {
+        let app = try TestApp()
+        await app.run { await app.catalog.search("mascara") }
+        #expect(app.catalog.searchResults.contains { $0.name == "Essence Mascara" })
+        let request = try #require(app.mock.received.last { $0.path == "/products/search" })
+        let items = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        #expect(items.contains { $0.name == "q" && $0.value == "mascara" })
+        #expect(items.contains { $0.name == "limit" && $0.value == "10" })
     }
 
     @Test("@Headers del repositorio viaja en cada petición del catálogo")

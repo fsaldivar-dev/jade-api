@@ -96,6 +96,40 @@ func create(order: Body<Order>) async throws -> Order      // el objeto entero c
 
 Un `Optional` con valor `nil` se omite. Falta un `:parámetro` de la ruta → error de compilación.
 
+## Objeto de petición (@ApiRequest)
+
+[Saltar a configurarlo ↓](#)
+
+**Qué es.** Un `struct` con `@ApiRequest` que agrupa los parámetros de un endpoint. Se usa como el
+**único** parámetro de un `@Api` y sus campos se despliegan en la petición.
+
+**Por qué.** Una firma con ocho o diez parámetros es ilegible y frágil en la llamada; y la misma forma
+suele repetirse en varios endpoints. Un objeto con campos nombrados es más claro y reutilizable. Es el
+espejo del lado de la respuesta: allí mapeas DTO → dominio, aquí dominio → cable.
+
+**Cómo funciona.** Cada campo decide su destino por el tipo: `Path<T>`, `Query<T>`, `Header<T>` y
+`Body<T>` son explícitos; un campo pelón o con `@Parameter` infiere por el verbo (query en GET/DELETE,
+campo del body en POST/PUT/PATCH). El macro lee los campos y genera el aporte al `Endpoint`.
+
+```swift
+@ApiRequest
+struct CreateOrder {
+    @Parameter var items: [LineItem]     // body (es POST)
+    @Parameter var coupon: String?       // body; nil se omite
+    var idempotencyKey: Header<String>   // explícito: va al header
+}
+
+@Api("/orders", method: .post)
+func create(_ order: CreateOrder) async throws -> Order
+```
+
+Un parámetro suelto de un tipo tuyo (no primitivo) se asume `@ApiRequest`; si no lo es, no compila, con
+un error que te dice que lo anotes o lo envuelvas en `Body<…>`. Para mandar un objeto como body crudo
+sin desplegarlo, usa `Body<T>` en la firma.
+
+**En la demo.** Pestaña Catálogo: el buscador usa `ProductQuery` (`@ApiRequest`) contra
+`/products/search`. Ver [`CatalogRepository`](../Examples/Guide/Sources/GuideCore/Network/Repositories/CatalogRepository.swift).
+
 ## Respuestas y errores
 
 **Cómo funciona.** El retorno puede ser `Decodable`, `Data`, `String`, `Void` o `Response` (status,

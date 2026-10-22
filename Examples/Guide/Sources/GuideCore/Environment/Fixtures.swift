@@ -55,6 +55,15 @@ public enum Fixtures {
             return .json(#"{"products": [\#(products.joined(separator: ", "))], "total": 3}"#)
         }
         mock.on(.get, "/products/category-list") { _ in .json(#"["beauty", "fragrances", "furniture"]"#) }
+        mock.on(.get, "/products/search") { request in
+            let q = (URLComponents(url: request.url, resolvingAgainstBaseURL: false)?.queryItems?
+                .first { $0.name == "q" }?.value ?? "").lowercased()
+            let all = [("Essence Mascara", 9.99), ("Eyeshadow Palette", 19.99), ("Powder Canister", 14.99)]
+            let hits = all.filter { $0.0.lowercased().contains(q) }
+                .enumerated()
+                .map { #"{"id": \#($0.offset + 1), "title": "\#($0.element.0)", "price": \#($0.element.1), "thumbnail": "https://cdn.dummyjson.com/x.webp"}"# }
+            return .json(#"{"products": [\#(hits.joined(separator: ", "))], "total": \#(hits.count)}"#)
+        }
         mock.on(.get, "/products/:id") { request in
             guard let last = request.path.split(separator: "/").last, let id = Int(last) else { return .status(400) }
             guard id != 9999 else { return .json(#"{"message": "Product with id '9999' not found"}"#, status: 404) }

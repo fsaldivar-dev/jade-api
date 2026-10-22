@@ -158,3 +158,30 @@ public macro Idempotent() = #externalMacro(module: "JadeAPIMacros", type: "Repos
 /// ```
 @attached(peer)
 public macro Socket(_ path: String, reconnect: RetryPolicy.Backoff? = nil, maxReconnects: Int? = nil, keepAlive: Duration? = nil) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Convierte un `struct` en un objeto de petición: sus campos se despliegan en la petición en vez de ir
+/// como parámetros sueltos de la firma. Útil cuando un endpoint tiene muchos parámetros o la forma se
+/// reutiliza. Se usa como el único parámetro de un `@Api`:
+///
+/// ```swift
+/// @ApiRequest
+/// struct CreateOrder {
+///     @Parameter var items: [LineItem]     // body (es POST)
+///     @Parameter var coupon: String?       // body; nil se omite
+///     var idempotencyKey: Header<String>   // explícito: va al header
+/// }
+///
+/// @Api("/orders", method: .post)
+/// func create(_ order: CreateOrder) async throws -> Order
+/// ```
+///
+/// Cada campo decide su destino por el tipo: ``Path``, ``Query``, ``Header`` y ``Body`` son explícitos;
+/// un campo pelón o con `@Parameter` infiere por el verbo (query en GET/DELETE, body en POST/PUT/PATCH).
+/// Para mandar un objeto como body crudo sin desplegarlo, usa `Body<T>` en la firma, no `@ApiRequest`.
+@attached(extension, conformances: ApiRequest, names: named(_inputs))
+public macro ApiRequest() = #externalMacro(module: "JadeAPIMacros", type: "ApiRequestMacro")
+
+/// Marca un campo de un `@ApiRequest` como parámetro (query o body según el verbo). Es opcional y
+/// legible: un campo pelón se trata igual. El destino lo decide el tipo del campo en `@ApiRequest`.
+@attached(peer)
+public macro Parameter() = #externalMacro(module: "JadeAPIMacros", type: "ParameterMarkerMacro")

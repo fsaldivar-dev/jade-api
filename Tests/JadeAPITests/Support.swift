@@ -340,3 +340,28 @@ protocol AccountsRepository: Sendable {
 protocol LegacyRepository: Sendable {
     @Api("/ping") func ping() async throws -> String
 }
+
+// MARK: - Objetos de petición (@ApiRequest)
+
+@ApiRequest
+struct NewUser {
+    @Parameter var name: String
+    @Parameter var age: Int?
+    var trace: Header<String>
+}
+
+@ApiRequest
+struct UserQuery {
+    @Parameter var q: String
+    @Parameter var limit: Int?
+    var section: Path<String>
+}
+
+@Repository
+protocol AccountsRequestRepository: Sendable {
+    @Api("/users", method: .post)
+    func create(_ user: NewUser) async throws -> User              // @Parameter → body, Header → header
+
+    @Api("/sections/:section/users")
+    func search(_ query: UserQuery) async throws -> [User]         // @Parameter → query, Path → ruta
+}

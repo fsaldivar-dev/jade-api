@@ -178,27 +178,7 @@ public struct RepositoryMacro: PeerMacro {
 
         // Construcción del Endpoint.
         let signature = function.name.text + "(" + function.signature.parameterClause.parameters.map { "\($0.firstName.text):" }.joined() + ")"
-        var statements: [String] = []
-        let headerParameters = parameters.filter { $0.kind == .header }
         let staticHeaders = Attributes.find("Headers", in: function.attributes).flatMap(Self.firstArgument) ?? "[:]"
-        statements.append("\(headerParameters.isEmpty && !hasIdempotent ? "let" : "var") __headers: [String: String] = \(staticHeaders)")
-        if hasIdempotent {
-            statements.append("__headers[\"Idempotency-Key\"] = Foundation.UUID().uuidString")
-        }
-        for parameter in headerParameters {
-            statements.append("if let __value = JadeAPI.ParameterValue.text(\(parameter.valueExpression)) { __headers[\"\(parameter.label)\"] = __value }")
-        }
-        let pathParameters = parameters.filter { $0.kind == .path }
-            .map { "\"\($0.label)\": JadeAPI.ParameterValue.text(\($0.valueExpression)) ?? \"\"" }
-        let query = parameters.filter { $0.kind == .query }
-            .map { "(\"\($0.label)\", JadeAPI.ParameterValue.text(\($0.valueExpression)))" }
-        let body: String
-        if let single = bodies.first {
-            body = ".value(\(single.valueExpression))"
-        } else {
-            let fields = parameters.filter { $0.kind == .field }.map { "(\"\($0.label)\", \($0.valueExpression))" }
-            body = fields.isEmpty ? "nil" : ".fields([\(fields.joined(separator: ", "))])"
-        }
         let endpointOptions = optionsExpression(from: function.attributes, apiTimeout: arguments.timeout, socketPolicy: socket.flatMap(Self.socketPolicyExpression))
         let optionsArgument: String
         switch (endpointOptions, protocolOptions) {
@@ -207,9 +187,49 @@ public struct RepositoryMacro: PeerMacro {
         case (nil, let base?): optionsArgument = ", options: \(base)"
         case (let own?, let base?): optionsArgument = ", options: \(own).merging(over: \(base))"
         }
-        statements.append("""
-        let __endpoint = JadeAPI.Endpoint(name: "\(signature)", method: .\(method), path: "\(path)", pathParameters: [\(pathParameters.isEmpty ? ":" : pathParameters.joined(separator: ", "))], query: [\(query.joined(separator: ", "))], headers: __headers, body: \(body)\(optionsArgument))
-        """)
+        var statements: [String] = []
+
+        let requestParams = parameters.filter { $0.kind == .request }
+        if let request = requestParams.first {
+            // Objeto de petición: debe ser el único parámetro; sus campos arman el endpoint.
+            if parameters.count > 1 {
+                context.error(function.signature, id: "requestAlone",
+                              "an @ApiRequest value must be the only parameter of '\(function.name.text)'; move the other fields inside it")
+                return nil
+            }
+            statements.append("let __inputs = \(request.valueExpression)._inputs(method: .\(method))")
+            statements.append("var __headers: [String: String] = \(staticHeaders)")
+            statements.append("for (__name, __value) in __inputs.headers { __headers[__name] = __value }")
+            if hasIdempotent {
+                statements.append("__headers[\"Idempotency-Key\"] = Foundation.UUID().uuidString")
+            }
+            statements.append("""
+            let __endpoint = JadeAPI.Endpoint(name: "\(signature)", method: .\(method), path: "\(path)", pathParameters: __inputs.pathValues, query: __inputs.query, headers: __headers, body: __inputs.body\(optionsArgument))
+            """)
+        } else {
+            let headerParameters = parameters.filter { $0.kind == .header }
+            statements.append("\(headerParameters.isEmpty && !hasIdempotent ? "let" : "var") __headers: [String: String] = \(staticHeaders)")
+            if hasIdempotent {
+                statements.append("__headers[\"Idempotency-Key\"] = Foundation.UUID().uuidString")
+            }
+            for parameter in headerParameters {
+                statements.append("if let __value = JadeAPI.ParameterValue.text(\(parameter.valueExpression)) { __headers[\"\(parameter.label)\"] = __value }")
+            }
+            let pathParameters = parameters.filter { $0.kind == .path }
+                .map { "\"\($0.label)\": JadeAPI.ParameterValue.text(\($0.valueExpression)) ?? \"\"" }
+            let query = parameters.filter { $0.kind == .query }
+                .map { "(\"\($0.label)\", JadeAPI.ParameterValue.text(\($0.valueExpression)))" }
+            let body: String
+            if let single = bodies.first {
+                body = ".value(\(single.valueExpression))"
+            } else {
+                let fields = parameters.filter { $0.kind == .field }.map { "(\"\($0.label)\", \($0.valueExpression))" }
+                body = fields.isEmpty ? "nil" : ".fields([\(fields.joined(separator: ", "))])"
+            }
+            statements.append("""
+            let __endpoint = JadeAPI.Endpoint(name: "\(signature)", method: .\(method), path: "\(path)", pathParameters: [\(pathParameters.isEmpty ? ":" : pathParameters.joined(separator: ", "))], query: [\(query.joined(separator: ", "))], headers: __headers, body: \(body)\(optionsArgument))
+            """)
+        }
         // Transformadores: @Unwrap, @Transform, @ErrorTransform (requisito gana sobre protocolo).
         let ownUnwrap = stringArgument(of: Attributes.find("Unwrap", in: function.attributes), in: context)
         let mapper = typeArgument(of: Attributes.find("Transform", in: function.attributes))

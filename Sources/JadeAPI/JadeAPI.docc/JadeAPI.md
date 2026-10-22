@@ -52,6 +52,10 @@ decorador si tocas la llamada, transformador si tocas datos*.
 - ``Headers(_:)``
 - ``BaseURL(_:)``
 - ``KeyMapping(_:dates:)``
+- ``ApiRequest()``
+- ``Parameter()``
+- ``ApiRequest``
+- ``ApiRequestInputs``
 
 ### Cliente y entornos
 

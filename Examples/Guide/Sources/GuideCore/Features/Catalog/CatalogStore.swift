@@ -49,10 +49,23 @@ public final class CatalogStore {
         }
     }
 
+    public private(set) var searchResults: [Product] = []
+
+    /// Busca con un `ProductQuery` (@ApiRequest): el store no arma parámetros sueltos, pasa el objeto.
+    public func search(_ text: String) async {
+        guard !text.isEmpty else { searchResults = []; return }
+        do {
+            searchResults = try await catalog.search(ProductQuery(q: text, limit: 10))
+        } catch {
+            errorMessage = describe(error)
+        }
+    }
+
     public func clear() {
         featured = []
         categories = []
         details = [:]
+        searchResults = []
         errorMessage = nil
     }
 

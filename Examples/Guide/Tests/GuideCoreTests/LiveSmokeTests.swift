@@ -21,6 +21,9 @@ struct LiveSmokeTests {
         #expect(!app.catalog.categories.isEmpty)
         guard case .failure(let error)? = app.catalog.details[9999] else { Issue.record("el 9999 debía fallar"); return }
         #expect((error as? CatalogError)?.description.contains("9999") == true)
+
+        await app.catalog.search("phone")                 // @ApiRequest contra /products/search real
+        #expect(!app.catalog.searchResults.isEmpty)
     }
 
     @Test("wikimedia: llegan ediciones por SSE y parar cierra")

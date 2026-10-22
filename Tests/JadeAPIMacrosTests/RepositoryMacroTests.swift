@@ -16,6 +16,8 @@ let macros: [String: Macro.Type] = [
     "BaseURL": RepositoryAttributeMacro.self,
     "KeyMapping": RepositoryAttributeMacro.self,
     "Socket": RepositoryAttributeMacro.self,
+    "ApiRequest": ApiRequestMacro.self,
+    "Parameter": ParameterMarkerMacro.self,
 ]
 
 final class RepositoryMacroTests: XCTestCase {

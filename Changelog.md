@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - Unreleased
+### Added
+- Objetos de petición: `@ApiRequest` sobre un `struct` lo convierte en el único parámetro de un `@Api`,
+  con sus campos desplegados. `@Parameter` (o un campo pelón) infiere query/body por el verbo; `Path<T>`,
+  `Query<T>`, `Header<T>` y `Body<T>` colocan el campo explícitamente. Nuevo protocolo `ApiRequest` y
+  `ApiRequestInputs`. Un parámetro suelto de un tipo no primitivo se trata como objeto de petición.
+- `Examples/Guide`: el catálogo gana un buscador que usa `ProductQuery` (`@ApiRequest`) contra
+  `/products/search` de dummyjson.
+
 ## [0.8.0] - 2026-10-22
 ### Added
 - `Socket.reconnect()`: cierra la conexión actual y deja que la política abra otra (volver de segundo plano,

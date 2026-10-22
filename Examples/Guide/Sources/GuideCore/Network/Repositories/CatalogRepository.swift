@@ -4,6 +4,19 @@ import JadeAPI
 ///
 /// A nivel de protocolo: un header fijo para todo el repositorio, los errores del servidor se
 /// convierten en `CatalogError`, y hay dos intentos para fallos transitorios (5xx, red).
+/// Objeto de petición: cuando un endpoint tiene varios parámetros, agruparlos en un struct se lee
+/// mejor que una firma larga. Cada campo @Parameter infiere por el verbo (aquí, GET → query). Ver `search`.
+@ApiRequest
+public struct ProductQuery {
+    @Parameter public var q: String
+    @Parameter public var limit: Int?
+
+    public init(q: String, limit: Int? = nil) {
+        self.q = q
+        self.limit = limit
+    }
+}
+
 @Repository(service: "catalog")
 @Headers(["X-Client": "JadeAPI-Guide"])
 @ErrorTransform(CatalogErrorMapper.self)
@@ -28,4 +41,11 @@ public protocol CatalogRepository: Sendable {
     @SingleFlight
     @Api("/products/:id", timeout: .seconds(5))
     func product(id: Int) async throws -> Product
+
+    /// GET /products/search?q=…&limit=… con un objeto de petición: @Parameter infiere query en un GET.
+    @Logged
+    @Unwrap("products")
+    @Transform(ProductsMapper.self)
+    @Api("/products/search")
+    func search(_ query: ProductQuery) async throws -> [Product]
 }
