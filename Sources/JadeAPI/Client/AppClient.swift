@@ -98,14 +98,29 @@ public struct AppClient: Sendable {
         return response
     }
 
-    /// Retorno `Decodable`.
-    public func perform<Out: Decodable>(_ endpoint: Endpoint, isolation: isolated (any Actor)? = #isolation) async throws -> Out {
+    /// Retorno `Decodable`. Con `unwrapping`, decodifica solo el sub-árbol de esa ruta de claves (`"data"`, `"data.user"`).
+    public func perform<Out: Decodable>(_ endpoint: Endpoint, unwrapping keyPath: String? = nil, isolation: isolated (any Actor)? = #isolation) async throws -> Out {
         let response = try await performResponse(endpoint, isolation: isolation)
+        return try decode(Out.self, from: response, unwrapping: keyPath)
+    }
+
+    /// Decodifica el body de una respuesta como lo haría ``perform(_:unwrapping:isolation:)``.
+    public func decode<Out: Decodable>(_ type: Out.Type, from response: Response, unwrapping keyPath: String? = nil) throws -> Out {
         do {
-            return try decoder.decode(Out.self, from: response.body)
+            let data = try keyPath.map { try Envelope.unwrap(response.body, keyPath: $0) } ?? response.body
+            return try decoder.decode(Out.self, from: data)
         } catch {
             throw HTTPError.decoding(error, response)
         }
+    }
+
+    /// Intenta convertir un ``HTTPError/status(_:_:)`` en un error de dominio con un ``Transformer``
+    /// cuyo `Output` es `Error`. Si el body no decodifica como `Input`, devuelve el error original.
+    public func mapError<Mapper: Transformer>(_ error: any Error, with mapper: Mapper.Type, unwrapping keyPath: String? = nil) -> any Error where Mapper.Output: Error {
+        guard case HTTPError.status(_, let response) = error,
+              let input = try? decode(Mapper.Input.self, from: response, unwrapping: keyPath),
+              let mapped = try? Mapper().transform(input) else { return error }
+        return mapped
     }
 
     /// Retorno `Void`.

@@ -133,3 +133,37 @@ protocol PaymentsRepository: Sendable {
     @Api("/payments/:id")
     func payment(id: Int) async throws -> Response
 }
+
+// MARK: - Transformadores de prueba
+
+struct UserDTO: Decodable { let id: Int; let full_name: String }
+struct Profile: Equatable, Sendable { let id: Int; let name: String }
+
+struct ProfileMapper: Transformer {
+    func transform(_ dto: UserDTO) throws -> Profile { Profile(id: dto.id, name: dto.full_name) }
+}
+
+struct APIErrorBody: Decodable { let code: String; let message: String }
+enum DomainError: Error, Equatable { case api(code: String, message: String) }
+
+struct APIErrorMapper: Transformer {
+    func transform(_ body: APIErrorBody) throws -> DomainError { .api(code: body.code, message: body.message) }
+}
+
+@Repository
+@Unwrap("data")
+@ErrorTransform(APIErrorMapper.self)
+protocol ProfilesRepository: Sendable {
+    @Transform(ProfileMapper.self)
+    @Api("/profiles/:id")
+    func profile(id: Int) async throws -> Profile              // {data: UserDTO} → Profile
+
+    @Unwrap("data.items")
+    @Api("/profiles")
+    func all() async throws -> [UserDTO]                       // el @Unwrap del requisito gana
+
+    @Transform(ProfileMapper.self)
+    @Unwrap("result")
+    @Api("/profiles/:id/alt")
+    func alternative(id: Int) async throws -> Profile          // Unwrap + Transform juntos
+}

@@ -50,3 +50,19 @@ public macro Api(_ path: String = "", method: HTTPMethod? = nil) = #externalMacr
 /// El cliente generado hace `client.with(interceptors: [SignRequest(), RequestLogger(.curl)])` en su `init`.
 @attached(peer)
 public macro Interceptors(_ interceptors: any Interceptor...) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Convierte lo decodificado (DTO) en el tipo de retorno del requisito, con un ``Transformer``.
+/// `Mapper.Input` es lo que se decodifica; `Mapper.Output` debe ser el retorno.
+@attached(peer)
+public macro Transform<Mapper: Transformer>(_ mapper: Mapper.Type) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Decodifica solo el sub-árbol de esa ruta de claves: `@Unwrap("data")`, `@Unwrap("data.user")`.
+/// Sobre el protocolo aplica a todos los endpoints; sobre un requisito, solo a ese (y gana).
+@attached(peer)
+public macro Unwrap(_ keyPath: String) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Convierte el body de un error HTTP (status fuera de 2xx) en un error de dominio con un
+/// ``Transformer`` cuyo `Output` es `Error`. Si el body no decodifica como `Input`, se lanza el
+/// ``HTTPError`` original. Sobre el protocolo aplica a todos los endpoints.
+@attached(peer)
+public macro ErrorTransform<Mapper: Transformer>(_ mapper: Mapper.Type) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro") where Mapper.Output: Error

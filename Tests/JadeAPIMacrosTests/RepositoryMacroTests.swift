@@ -6,6 +6,10 @@ import XCTest
 let macros: [String: Macro.Type] = [
     "Repository": RepositoryMacro.self,
     "Api": ApiMacro.self,
+    "Interceptors": RepositoryAttributeMacro.self,
+    "Unwrap": RepositoryAttributeMacro.self,
+    "Transform": RepositoryAttributeMacro.self,
+    "ErrorTransform": RepositoryAttributeMacro.self,
 ]
 
 final class RepositoryMacroTests: XCTestCase {
@@ -65,6 +69,77 @@ final class RepositoryMacroTests: XCTestCase {
             diagnostics: [
                 DiagnosticSpec(message: "'deleteUser': parameters (id) will be sent as query; if any is a path parameter, declare the route, e.g. @Api(\"/user/:id\")", line: 10, column: 5, severity: .warning),
             ],
+            macros: macros
+        )
+    }
+
+    func testTransformersAndInterceptors() {
+        assertMacroExpansion(
+            """
+            @Repository
+            @Unwrap("data")
+            @ErrorTransform(APIErrorMapper.self)
+            @Interceptors(Trace(name: "repo"))
+            protocol ProfilesRepository: Sendable {
+                @Transform(ProfileMapper.self)
+                @Api("/profiles/:id")
+                func profile(id: Int) async throws -> Profile
+
+                @Unwrap("data.items")
+                @Api("/profiles")
+                func all() async throws -> [UserDTO]
+
+                @Api("/profiles/:id/raw")
+                func raw(id: Int) async throws -> String
+            }
+            """,
+            expandedSource: """
+            protocol ProfilesRepository: Sendable {
+                func profile(id: Int) async throws -> Profile
+                func all() async throws -> [UserDTO]
+                func raw(id: Int) async throws -> String
+            }
+
+            @AnnotationSwift.Decorable
+            struct ProfilesRepositoryClient: ProfilesRepository, Sendable {
+                let client: JadeAPI.AppClient
+
+                init(client: JadeAPI.AppClient) {
+                    self.client = client.with(interceptors: [Trace(name: "repo")])
+                }
+
+                func profile(id: Int) async throws -> Profile {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "profile(id:)", method: .get, path: "/profiles/:id", pathParameters: ["id": JadeAPI.ParameterValue.text(id) ?? ""], query: [], headers: __headers, body: nil)
+                    do {
+                        let __input: ProfileMapper.Input = try await client.perform(__endpoint, unwrapping: "data")
+                        return try ProfileMapper().transform(__input)
+                    } catch {
+                        throw client.mapError(error, with: APIErrorMapper.self, unwrapping: "data")
+                    }
+                }
+
+                func all() async throws -> [UserDTO] {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "all()", method: .get, path: "/profiles", pathParameters: [:], query: [], headers: __headers, body: nil)
+                    do {
+                        return try await client.perform(__endpoint, unwrapping: "data.items")
+                    } catch {
+                        throw client.mapError(error, with: APIErrorMapper.self, unwrapping: "data.items")
+                    }
+                }
+
+                func raw(id: Int) async throws -> String {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "raw(id:)", method: .get, path: "/profiles/:id/raw", pathParameters: ["id": JadeAPI.ParameterValue.text(id) ?? ""], query: [], headers: __headers, body: nil)
+                    do {
+                        return try await client.performString(__endpoint)
+                    } catch {
+                        throw client.mapError(error, with: APIErrorMapper.self)
+                    }
+                }
+            }
+            """,
             macros: macros
         )
     }
