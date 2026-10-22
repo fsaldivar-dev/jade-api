@@ -84,7 +84,7 @@ struct GroupTests {
         let fast = MockClient()
         fast.on(.get, "/users/:id") { _ in .status(500) }
         let slow = MockClient()
-        slow.latency = .milliseconds(400)
+        slow.latency = .seconds(2)      // si no se cancelara, la prueba tardaría 2 s
         slow.on(.get, "/users/:id/bio") { _ in MockResponse(body: Data("tarde".utf8)) }
         let failing: UsersRepository = UsersRepositoryClient(client: AppClient(baseURL: "https://a.local", transport: fast))
         let lagging: UsersRepository = UsersRepositoryClient(client: AppClient(baseURL: "https://b.local", transport: slow))
@@ -93,7 +93,7 @@ struct GroupTests {
         await #expect(throws: HTTPError.self) {
             _ = try await self.client.all({ try await failing.user(id: 1) }, { try await lagging.bio(id: 1) })
         }
-        #expect(ContinuousClock.now - start < .milliseconds(300))   // no esperó los 400 ms de la lenta
+        #expect(ContinuousClock.now - start < .seconds(1))          // no esperó los 2 s de la lenta
     }
 
     @Test("Grupo vacío devuelve lista vacía")

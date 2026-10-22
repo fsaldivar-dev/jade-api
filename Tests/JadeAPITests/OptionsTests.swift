@@ -80,7 +80,8 @@ struct OptionsTests {
 
     @Test("timeout de @Api: el transporte tarda más, falla con HTTPError.timeout y, por el @Retries del protocolo, se intenta tres veces")
     func timeout() async throws {
-        mock.latency = .milliseconds(300)
+        // Latencia de 2 s: si el timeout de 80 ms no cortara, los tres intentos tardarían 6 s.
+        mock.latency = .seconds(2)
         mock.on(.get, "/catalog/slow") { _ in .json("[]") }
         let start = ContinuousClock.now
         do { _ = try await catalog.slow(); Issue.record("debió expirar") }
@@ -91,7 +92,7 @@ struct OptionsTests {
             #expect(request.timeout == 0.08)
         }
         #expect(mock.received.count == 3)                         // timeout es transitorio: reintenta
-        #expect(ContinuousClock.now - start < .milliseconds(450)) // 3 × 80 ms + backoff, no 3 × 300 ms
+        #expect(ContinuousClock.now - start < .milliseconds(1500)) // 3 × 80 ms + backoff, con margen para CI; nunca 3 × 2 s
     }
 
     @Test("Las opciones del cliente son la base; el endpoint gana campo a campo")

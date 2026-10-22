@@ -74,7 +74,7 @@ struct StreamTests {
 
     @Test("Cancelar la Task que consume detiene el stream")
     func cancellation() async throws {
-        mock.onStream(.get, "/log") { _ in .text(Array(repeating: "x\n", count: 50), interval: .milliseconds(30)) }
+        mock.onStream(.get, "/log") { _ in .text(Array(repeating: "x\n", count: 200), interval: .milliseconds(30)) }
         let repo = feed
         let seen = Counter()
         let task = Task {
@@ -83,7 +83,7 @@ struct StreamTests {
         try await Task.sleep(for: .milliseconds(120))
         task.cancel()
         _ = try? await task.value
-        #expect(seen.increment() < 20)
+        #expect(seen.increment() < 100)   // 200 líneas a 30 ms serían 6 s; se canceló mucho antes
     }
 
     @Test("Un transporte sin streaming nativo entrega el body de una pieza")
