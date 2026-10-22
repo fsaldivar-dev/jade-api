@@ -1,0 +1,147 @@
+import JadeAPIMacros
+import SwiftSyntaxMacros
+import SwiftSyntaxMacrosTestSupport
+import XCTest
+
+let macros: [String: Macro.Type] = [
+    "Repository": RepositoryMacro.self,
+    "Api": ApiMacro.self,
+]
+
+final class RepositoryMacroTests: XCTestCase {
+
+    func testGeneratesClient() {
+        assertMacroExpansion(
+            """
+            @Repository
+            public protocol UsersRepository {
+                @Retry(3)
+                @Api("/users/:id")
+                func user(id: Int, verbose: Bool) async throws -> User
+
+                @Api("/auth", method: .post)
+                func auth(user: String, password: String) async throws -> Token
+
+                @Api
+                func deleteUser(id: Int) async throws
+            }
+            """,
+            expandedSource: """
+            public protocol UsersRepository {
+                @Retry(3)
+                func user(id: Int, verbose: Bool) async throws -> User
+                func auth(user: String, password: String) async throws -> Token
+                func deleteUser(id: Int) async throws
+            }
+
+            @AnnotationSwift.Decorable
+            public struct UsersRepositoryClient: UsersRepository, Sendable {
+                public let client: JadeAPI.AppClient
+
+                public init(client: JadeAPI.AppClient) {
+                    self.client = client
+                }
+
+                @Retry(3)
+                public func user(id: Int, verbose: Bool) async throws -> User {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "user(id:verbose:)", method: .get, path: "/users/:id", pathParameters: ["id": JadeAPI.ParameterValue.text(id) ?? ""], query: [("verbose", JadeAPI.ParameterValue.text(verbose))], headers: __headers, body: nil)
+                    return try await client.perform(__endpoint)
+                }
+
+                public func auth(user: String, password: String) async throws -> Token {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "auth(user:password:)", method: .post, path: "/auth", pathParameters: [:], query: [], headers: __headers, body: .fields([("user", user), ("password", password)]))
+                    return try await client.perform(__endpoint)
+                }
+
+                public func deleteUser(id: Int) async throws {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "deleteUser(id:)", method: .delete, path: "/user", pathParameters: [:], query: [("id", JadeAPI.ParameterValue.text(id))], headers: __headers, body: nil)
+                    return try await client.performVoid(__endpoint)
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(message: "'deleteUser': parameters (id) will be sent as query; if any is a path parameter, declare the route, e.g. @Api(\"/user/:id\")", line: 10, column: 5, severity: .warning),
+            ],
+            macros: macros
+        )
+    }
+
+    func testDiagnostics() {
+        assertMacroExpansion(
+            """
+            @Repository
+            protocol Broken {
+                func noApi() async throws -> Int
+                @Api func notAsync() throws -> Int
+                @Api("/x/\\(y)") func interpolated() async throws -> Int
+                @Api("/x", method: "post") func badMethod() async throws -> Int
+                @Api("/x", method: .post) func twoBodies(a: Body<Int>, b: Int) async throws -> Int
+            }
+            """,
+            expandedSource: """
+            protocol Broken {
+                func noApi() async throws -> Int
+                func notAsync() throws -> Int
+                func interpolated() async throws -> Int
+                func badMethod() async throws -> Int
+                func twoBodies(a: Body<Int>, b: Int) async throws -> Int
+            }
+
+            @AnnotationSwift.Decorable
+            struct BrokenClient: Broken, Sendable {
+                let client: JadeAPI.AppClient
+
+                init(client: JadeAPI.AppClient) {
+                    self.client = client
+                }
+
+                func interpolated() async throws -> Int {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "interpolated()", method: .get, path: "/interpolated", pathParameters: [:], query: [], headers: __headers, body: nil)
+                    return try await client.perform(__endpoint)
+                }
+
+                func badMethod() async throws -> Int {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "badMethod()", method: .get, path: "/x", pathParameters: [:], query: [], headers: __headers, body: nil)
+                    return try await client.perform(__endpoint)
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(message: "every requirement of a @Repository needs @Api", line: 3, column: 10),
+                DiagnosticSpec(message: "a @Repository requirement must be declared 'async throws'", line: 4, column: 23),
+                DiagnosticSpec(message: "@Api path must be a plain string literal, without interpolation", line: 5, column: 10),
+                DiagnosticSpec(message: "@Api method must be written as .get, .post, …", line: 6, column: 24),
+                DiagnosticSpec(message: "use a single Body<T> parameter or plain parameters as body fields, not both", line: 7, column: 45),
+            ],
+            macros: macros
+        )
+    }
+
+    func testApiOutsideRepository() {
+        assertMacroExpansion(
+            """
+            protocol Plain {
+                @Api func getX() async throws -> Int
+            }
+            @Repository
+            struct NotAProtocol {}
+            """,
+            expandedSource: """
+            protocol Plain {
+                func getX() async throws -> Int
+            }
+            struct NotAProtocol {}
+            """,
+            diagnostics: [
+                DiagnosticSpec(message: "@Api has no effect: add @Repository to 'Plain'", line: 2, column: 5),
+                DiagnosticSpec(message: "@Repository can only be applied to a protocol", line: 4, column: 1),
+            ],
+            macros: macros
+        )
+    }
+}

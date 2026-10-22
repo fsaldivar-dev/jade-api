@@ -17,10 +17,39 @@ protocol UsersRepository {
 }
 ```
 
-> Estado: iteración 0 (cimientos). La API pública llega en la iteración 1.
+> Estado: iteración 1 (declarar y llamar).
 
 ## Topics
 
+### Declarar un API
+
+- ``Repository()``
+- ``Api(_:method:)``
+- ``Path``
+- ``Query``
+- ``Header``
+- ``Body``
+
+### Cliente y entornos
+
+- ``AppClient``
+- ``HTTPClient``
+- ``URLSessionClient``
+- ``StageProtocol``
+
+### Petición y respuesta
+
+- ``Endpoint``
+- ``Request``
+- ``Response``
+- ``HTTPMethod``
+- ``HTTPError``
+
+### Pruebas
+
+- ``MockClient``
+- ``MockResponse``
+
 ### Versión
 
-- ``JadeAPI/JadeAPI``
+- ``Jade``

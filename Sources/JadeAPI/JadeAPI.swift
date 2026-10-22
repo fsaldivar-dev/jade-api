@@ -8,7 +8,8 @@
 
 @_exported import AnnotationSwift
 
-public enum JadeAPI {
+/// Información de la librería. (No se llama `JadeAPI` para no tapar el nombre del módulo.)
+public enum Jade {
     /// Versión de la librería.
     public static let version = "0.0.1"
 }

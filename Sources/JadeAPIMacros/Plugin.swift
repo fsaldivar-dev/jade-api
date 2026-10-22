@@ -2,7 +2,7 @@
 //  Plugin.swift
 //  JadeAPIMacros
 //
-//  Iteración 0: el plugin existe y compila. @Repository y @Api llegan en la iteración 1.
+//  @Repository genera el cliente de un protocolo; @Api es un marcador que @Repository lee.
 //
 
 import SwiftCompilerPlugin
@@ -10,5 +10,5 @@ import SwiftSyntaxMacros
 
 @main
 struct JadeAPIPlugin: CompilerPlugin {
-    let providingMacros: [Macro.Type] = []
+    let providingMacros: [Macro.Type] = [RepositoryMacro.self, ApiMacro.self]
 }
