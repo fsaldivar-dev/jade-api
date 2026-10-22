@@ -1,7 +1,8 @@
 import Foundation
 
 /// El transporte: recibe una ``Request`` ya formada y devuelve una ``Response``.
-/// URLSession por defecto; `MockClient` (JadeTesting) en tests; Alamofire en una iteración posterior.
+/// URLSession por defecto; `MockClient` (JadeTesting) en tests. Para otro backend (Alamofire,
+/// AsyncHTTPClient, …) quien usa la librería escribe un tipo que conforme este protocolo: no lo envía JadeAPI.
 public protocol HTTPClient: Sendable {
     func send(_ request: Request) async throws -> Response
     /// Respuesta por partes. Por defecto cae a ``send(_:)`` y entrega el body de una pieza, así

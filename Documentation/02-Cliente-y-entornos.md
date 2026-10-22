@@ -45,8 +45,10 @@ lo usa para los grupos.
 `URLSessionClient` es el de serie.
 
 **Por qué.** Es el hueco por el que cambias *cómo* se envía sin tocar nada más: una `URLSession` tuya
-(caché, cookies, proxy), pinning, un servidor falso en pruebas, o un backend propio (Alamofire llegará
-por aquí).
+(caché, cookies, proxy), pinning, un servidor falso en pruebas, o un backend propio. Conectar Alamofire,
+AsyncHTTPClient o lo que uses es escribir un tipo que conforme `HTTPClient`: esa integración la hace quien
+usa la librería, no la envía JadeAPI, porque atarla a la API de un tercero sería cargar con sus cambios y
+sus bugs de pegamento. La costura es justo este protocolo.
 
 **Cómo funciona.** `HTTPClient` es un protocolo de dos métodos:
 

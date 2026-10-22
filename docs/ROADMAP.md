@@ -110,13 +110,25 @@ Saldado en 0.8.0: los ejemplos `Catalog` y `Media` se funden en `Examples/Guide`
 
 ---
 
-## Iteración 4 · Backends y ergonomía — sin empezar
+## Iteración 4 · Ergonomía — sin empezar
 
-- Backend Alamofire: adaptador que recibe una `Session` y respeta interceptores, retriers y `ServerTrustManager`.
 - `@Mock` genera `<Nombre>Mock: <Nombre>` con closures por endpoint.
 - Segunda etiqueta como clave (`func post(id postId: Int)`).
-- Integración con Pulse. Generador desde OpenAPI.
-- Ejemplo `Examples/Alamofire`.
+
+## Fuera del núcleo (responsabilidad de quien integra)
+
+JadeAPI expone `HTTPClient` como punto de extensión para que cada quien conecte lo suyo. La librería no
+envía ni mantiene estas integraciones; enviarlas la ataría a la API y a los bugs de proyectos que quien
+integra conoce mejor:
+
+- **Backend Alamofire** (u otro cliente HTTP): un transporte que conforme `HTTPClient` y envuelva la
+  `Session` del consumidor, respetando sus interceptores y su `ServerTrustManager`.
+- **Inspección de tráfico (Pulse u otra)**: un `Interceptor` o un transporte que registre.
+- **Generador desde OpenAPI**: una herramienta de build del consumidor que emita los `@Repository`; vive
+  en su pipeline, no en la librería.
+
+El patrón "trae tu transporte" está documentado en
+[Cliente y entornos → El transporte](../Documentation/02-Cliente-y-entornos.md#el-transporte-httpclient).
 
 ## Ideas (sin iteración)
 
@@ -139,6 +151,7 @@ batch del servidor con ventana de tiempo · AsyncHTTPClient para Linux · métri
 9. **Los entornos viven en `.xcconfig` + Info.plist**, el estándar de Xcode; nada de archivos de configuración propios.
 10. **Progressive disclosure**: nadie ve interceptores ni transformadores hasta que los necesita.
 11. **Este roadmap se revisa contra el código en cada release.** Lo que no está, se dice.
+12. **Las integraciones son de quien integra**, a través del `HTTPClient` público: backends alternativos (Alamofire), inspectores de tráfico (Pulse) y generadores (OpenAPI) no los envía la librería.
 
 ## Complejidad cognitiva (referencia)
 
