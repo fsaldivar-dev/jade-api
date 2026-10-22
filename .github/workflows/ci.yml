@@ -31,5 +31,7 @@ jobs:
         run: swift build -v
       - name: Test
         run: swift test
-      - name: Build the Login example
-        run: swift build --package-path Examples/Login
+      - name: Build and test the Login example
+        run: |
+          swift build --package-path Examples/Login
+          swift test --package-path Examples/Login
