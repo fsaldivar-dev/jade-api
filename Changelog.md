@@ -12,7 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   intercambio del código con prueba DPoP, comprobación de claims del `id_token`, `refresh(_:)`.
 - `FormBody`: bodies `application/x-www-form-urlencoded`.
 
+### Changed
+- `Examples/Login` reorganizado por capas en un target `LoginCore` (dominio, red, entorno, features, raíz de
+  composición) más la app SwiftUI, sin `try!` ni singletons, con pruebas propias (`swift test --package-path
+  Examples/Login`) y README.
+- `MockClient` elige la ruta más específica (`/catalog/featured` gana a `/catalog/:id` sin importar el orden
+  de registro); entre igual de específicas, la última registrada.
+
 ### Fixed
+- `AuthInterceptor` ya no intenta refrescar el token tras un 401 cuando la petición salió sin token: un
+  login con credenciales malas devuelve su `HTTPError.status(401, …)` en vez del error del refresh.
 - Tests con reloj robustos en runners lentos (la CI estaba en rojo desde la iteración 2 por un límite
   de 450 ms en el test de timeout).
 

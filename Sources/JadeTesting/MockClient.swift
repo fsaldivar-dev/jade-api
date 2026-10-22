@@ -75,8 +75,8 @@ public final class MockClient: HTTPClient, @unchecked Sendable {
     }
     public typealias StreamHandler = @Sendable (Request) throws -> MockStream
 
-    private struct Route { let method: HTTPMethod; let segments: [Substring]; let handler: Handler }
-    private struct StreamRoute { let method: HTTPMethod; let segments: [Substring]; let handler: StreamHandler }
+    private struct Route: MockRoute { let method: HTTPMethod; let segments: [Substring]; let handler: Handler }
+    private struct StreamRoute: MockRoute { let method: HTTPMethod; let segments: [Substring]; let handler: StreamHandler }
     private let lock = NSLock()
     private var routes: [Route] = []
     private var streamRoutes: [StreamRoute] = []
@@ -108,10 +108,7 @@ public final class MockClient: HTTPClient, @unchecked Sendable {
         let handler: StreamHandler? = {
             lock.lock(); defer { lock.unlock() }
             let segments = request.path.split(separator: "/")
-            return streamRoutes.last { route in
-                route.method == request.method && route.segments.count == segments.count &&
-                zip(route.segments, segments).allSatisfy { $0.hasPrefix(":") || $0 == $1 }
-            }?.handler
+            return streamRoutes.bestMatch(request.method, segments)?.handler
         }()
         guard let handler else { return StreamingResponse(try await sendWithoutRecording(request)) }
         let mock = try handler(request)
@@ -157,10 +154,7 @@ public final class MockClient: HTTPClient, @unchecked Sendable {
         let handler: Handler? = {
             lock.lock(); defer { lock.unlock() }
             let segments = request.path.split(separator: "/")
-            return routes.last { route in
-                route.method == request.method && route.segments.count == segments.count &&
-                zip(route.segments, segments).allSatisfy { $0.hasPrefix(":") || $0 == $1 }
-            }?.handler
+            return routes.bestMatch(request.method, segments)?.handler
         }()
         guard let handler else { throw MockError.unmocked(request) }
         let mock = try handler(request)
@@ -247,3 +241,29 @@ extension MockClient: TransferClient {
 
 /// Atajo de nivel superior para `MockClient.MockStream`.
 public typealias MockStream = MockClient.MockStream
+
+private protocol MockRoute {
+    var method: HTTPMethod { get }
+    var segments: [Substring] { get }
+}
+
+private extension Array where Element: MockRoute {
+    /// La ruta más específica gana (`/catalog/featured` antes que `/catalog/:id`, se registre en el orden
+    /// que sea); entre igual de específicas, la última registrada.
+    func bestMatch(_ method: HTTPMethod, _ segments: [Substring]) -> Element? {
+        lazy.enumerated()
+            .filter { _, route in
+                route.method == method && route.segments.count == segments.count &&
+                zip(route.segments, segments).allSatisfy { $0.hasPrefix(":") || $0 == $1 }
+            }
+            .min { lhs, rhs in
+                let (l, r) = (lhs.element.wildcards, rhs.element.wildcards)
+                return l != r ? l < r : lhs.offset > rhs.offset
+            }?
+            .element
+    }
+}
+
+private extension MockRoute {
+    var wildcards: Int { segments.filter { $0.hasPrefix(":") }.count }
+}

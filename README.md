@@ -432,8 +432,11 @@ Declara los repositorios como `protocol X: Sendable`. El cliente generado es `Se
 
 [`Examples/Login`](Examples/Login): app SwiftUI con selector de entorno (dev, prod, mock), dos servicios (`auth` y `catalog`) resueltos por `Environment` y `live(in:)`, `.xcconfig` de muestra en `Config/`, login con repositorios declarados, `@Logged @Retry(2)` registrados con `@Annotation` y el plugin, y un catálogo que usa toda la fase 2: `AuthInterceptor` + `RequestLogger`, `@Unwrap` + `@Transform` + `@ErrorTransform`, `@Retries` (la primera carga recibe un 503), `@CacheFor`, `@SingleFlight`, `timeout`, `client.all` y `groupSettled`.
 
+Está organizado como una app real: un target `LoginCore` (dominio, red, entorno, features y raíz de composición) que se prueba sin UI, y la app SwiftUI encima. Ver su [README](Examples/Login/README.md).
+
 ```bash
-swift run --package-path Examples/Login
+swift run --package-path Examples/Login            # app (entorno mock por defecto)
+swift test --package-path Examples/Login           # lógica contra los fixtures
 ```
 
 ## Cómo funciona

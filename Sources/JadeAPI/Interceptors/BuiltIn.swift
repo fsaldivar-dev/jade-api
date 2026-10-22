@@ -81,6 +81,7 @@ public protocol TokenProvider: Sendable {
 
 /// Inyecta `Authorization` y, ante un status de la lista (401 por defecto), refresca el token una
 /// sola vez y repite la petición. Varias peticiones simultáneas comparten el mismo refresh.
+/// Una petición que salió sin token (no había sesión) no dispara el refresh: su 401 se devuelve tal cual.
 public struct AuthInterceptor: Interceptor {
     public let tokens: any TokenProvider
     public let header: String
@@ -100,7 +101,8 @@ public struct AuthInterceptor: Interceptor {
         let token = try await tokens.currentToken()
         if let token { request.headers[header] = "\(scheme) \(token)" }
         let response = try await next(request)
-        guard refreshOn.contains(response.status) else { return response }
+        // Sin token no hay nada que refrescar: ese 401 es la respuesta (p. ej. un login con credenciales malas).
+        guard let token, refreshOn.contains(response.status) else { return response }
         let fresh = try await coordinator.refresh(stale: token, using: tokens)
         request.headers[header] = "\(scheme) \(fresh)"
         return try await next(request)

@@ -87,6 +87,17 @@ struct InterceptorTests {
         await #expect(throws: GuardFailure.self) { try await broken.user(id: 1) }
     }
 
+    @Test("Auth: un 401 a una petición que salió sin token no dispara el refresh (un login fallido es un 401 de verdad)")
+    func authNoTokenNoRefresh() async throws {
+        let tokens = CountingTokens(token: nil)
+        mock.on(.get, "/users/:id") { _ in .status(401) }
+        let users: UsersRepository = UsersRepositoryClient(client: client([AuthInterceptor(tokens: tokens)]))
+        let error = await #expect(throws: HTTPError.self) { try await users.user(id: 1) }
+        #expect(error?.statusCode == 401)
+        #expect(await tokens.refreshes == 0)
+        #expect(mock.received.count == 1)
+    }
+
     @Test("RequestLogger: redacta Authorization y registra respuesta y error")
     func logger() async throws {
         final class Lines: @unchecked Sendable { let lock = NSLock(); var all: [String] = []; func add(_ s: String) { lock.lock(); all.append(s); lock.unlock() } }

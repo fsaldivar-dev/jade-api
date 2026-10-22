@@ -26,6 +26,15 @@ struct RepositoryTests {
         #expect(request.body == nil)
     }
 
+    @Test("MockClient: la ruta más específica gana aunque la plantilla se registre después")
+    func mockPrefersSpecificRoute() async throws {
+        mock.on(.get, "/users/:id") { _ in .json(#"{"id": 1, "name": "plantilla"}"#) }
+        mock.on(.get, "/users/7") { _ in .json(#"{"id": 7, "name": "exacta"}"#) }
+        mock.on(.get, "/users/:id") { _ in .json(#"{"id": 2, "name": "plantilla nueva"}"#) }
+        #expect(try await users.user(id: 7).name == "exacta")
+        #expect(try await users.user(id: 8).name == "plantilla nueva")   // entre plantillas, la última
+    }
+
     @Test("Inferencia: getUser(id:) → GET /user?id=")
     func inferredGet() async throws {
         mock.on(.get, "/user") { _ in .json(#"{"id": 1, "name": "Ana"}"#) }
