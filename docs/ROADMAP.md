@@ -9,7 +9,7 @@ que una iteración prometió y no se construyó está en [Deuda](#deuda) con el 
 los ojos abiertos en vez de darlo por hecho. Lo que no está en la iteración en curso no se empieza
 aunque sea fácil: la superficie de la librería es su mayor costo cognitivo.
 
-Última revisión contra el código: 2026-10-22 (0.6.0 publicada, 0.7.0 en curso).
+Última revisión contra el código: 2026-10-22 (0.7.0 publicada).
 
 ---
 
