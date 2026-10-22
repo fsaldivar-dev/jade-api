@@ -1,0 +1,47 @@
+// swift-tools-version: 6.2
+import PackageDescription
+import CompilerPluginSupport
+
+let package = Package(
+    name: "JadeAPI",
+    platforms: [
+        .macOS(.v13), .iOS(.v16), .tvOS(.v16), .watchOS(.v9), .visionOS(.v1),
+    ],
+    products: [
+        .library(name: "JadeAPI", targets: ["JadeAPI"]),
+    ],
+    dependencies: [
+        // Anotaciones apilables: @Decorable, Decorator, GuardDecorator, HookDecorator, MarkerMacro.
+        .package(url: "https://github.com/fsaldivar-dev/experimental-annotation-swift.git", from: "1.0.1"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"605.0.0"),
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.0"),
+    ],
+    targets: [
+        // Plugin del compilador: @Repository (genera el cliente) y los marcadores propios de Jade.
+        .macro(
+            name: "JadeAPIMacros",
+            dependencies: [
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+                .product(name: "SwiftDiagnostics", package: "swift-syntax"),
+            ]
+        ),
+        // Runtime público: cliente, Request/Response, Stage, MockClient, errores.
+        .target(
+            name: "JadeAPI",
+            dependencies: [
+                "JadeAPIMacros",
+                .product(name: "AnnotationSwift", package: "experimental-annotation-swift"),
+            ]
+        ),
+        .testTarget(name: "JadeAPITests", dependencies: ["JadeAPI"]),
+        .testTarget(
+            name: "JadeAPIMacrosTests",
+            dependencies: [
+                "JadeAPIMacros",
+                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
+            ]
+        ),
+    ],
+    swiftLanguageModes: [.v6]
+)
