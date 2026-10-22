@@ -145,9 +145,15 @@ los conceptos del siguiente.
 
 La iteración 3 de transporte se construye después del nivel 2 y antes del nivel 3.
 
-## Iteración 3 · Transporte avanzado (v0.3)
+## Iteración 3 · Transporte avanzado (v0.3) — hecho salvo pinning y métricas
 
 **Objetivo:** cuatro familias de retorno: valor, stream, transferencia, conexión. Una sola palabra para elegirla.
+
+**Cómo quedó:** `@Api(kind:)` con `.bytes/.lines/.ndjson/.sse/.download/.upload` y `@Socket` para la
+conexión. Sin reconexión automática de sockets ni long polling (pendientes de una política de
+resiliencia). Pinning y métricas pasan al nivel 3, junto al resto de seguridad bancaria. Las pruebas
+de WebSocket corren contra `LocalWebSocketServer` (Network.framework) en `JadeTesting`; no hay servidor
+HTTP local para descargas: se prueban con el transporte simulado de `MockClient`.
 
 - `@Api(..., kind: .stream)` → `AsyncThrowingStream<Data, Error>`; `.stream(.lines)`, `.stream(.ndjson(Chunk.self))`, `.sse` → `AsyncThrowingStream<ServerEvent, Error>`.
 - `@Api(..., kind: .download)` → `Download` (progreso, `url` final, reanudable por `Range`, background session).

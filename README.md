@@ -20,7 +20,7 @@ Retrofit para Swift, con una diferencia: la política de cada endpoint (`@Retry`
 `@Authenticated`, `@Logged`) se apila sobre el mismo método y la escribe quien usa la librería.
 Está construida sobre [AnnotationSwift](https://github.com/fsaldivar-dev/experimental-annotation-swift).
 
-> Estado: iteración 2 (pipeline: interceptores, transformadores, opciones, grupos). Ver [docs/ROADMAP.md](docs/ROADMAP.md).
+> Estado: iteración 3 (streams, transferencias, WebSocket) sobre los niveles 1 y 2. Ver [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick Start
 
@@ -305,6 +305,61 @@ let (featured, offers, categories) = try await client.all(
 ```
 
 Para dos o tres distintas sin límite, `async let` del lenguaje basta.
+
+## Streams
+
+`kind:` en `@Api` elige la familia de retorno; el stream empieza al hacer `await` del requisito y el status se valida antes de entregarlo (un 401 lanza `HTTPError.status` con el body completo, no un stream vacío):
+
+```swift
+@Repository
+protocol FeedRepository: Sendable {
+    @Api("/export", kind: .bytes)   func export() async throws -> AsyncThrowingStream<Data, any Error>
+    @Api("/log", kind: .lines)      func log() async throws -> AsyncThrowingStream<String, any Error>
+    @Api("/completions", method: .post, kind: .ndjson)
+    func complete(prompt: String) async throws -> AsyncThrowingStream<Chunk, any Error>   // un JSON por línea
+    @Api("/events", kind: .sse)     func events() async throws -> AsyncThrowingStream<ServerEvent, any Error>
+}
+
+for try await chunk in try await feed.complete(prompt: "hola") { … }   // cancelar la Task cierra el stream
+```
+
+Sobre URLSession los trozos llegan conforme el servidor los manda; cualquier `HTTPClient` sin streaming nativo entrega el body de una pieza. Los interceptores solo adaptan la petición (headers, auth): la respuesta no termina, así que no se intercepta. `@Retries` reintenta la conexión; `timeout` es el de conexión. En tests, `MockClient.onStream` entrega trozos partidos donde quieras.
+
+## Descargas y subidas
+
+```swift
+@Repository
+protocol FilesRepository: Sendable {
+    @Api("/files/:id", kind: .download)                 func export(id: Int) async throws -> Download
+    @Api("/media", method: .post, kind: .upload)        func upload(file: Body<FileUpload>) async throws -> Upload
+}
+
+let download = try await files.export(id: 7)          // la petición ya salió
+for await progress in download.progress { print(progress.fractionCompleted ?? 0) }
+let url = try await download.file()                   // o download.pause() → resumeData, download.resume(), download.cancel()
+
+let upload = try await files.upload(file: Body(FileUpload(url: photo, mimeType: "image/jpeg", fields: ["album": "x"])))
+let created: Created = try await upload.value()       // multipart/form-data con progreso
+```
+
+`Body<FileUpload>` y `Body<Multipart>` se codifican como multipart; `Body<Data>` viaja crudo; cualquier otro `Encodable`, como JSON. `DownloadQueue(maxConcurrent:)` encola descargas con progreso agregado, `results()` en orden y `settled()` sin lanzar. Todo sobre `URLSession` con delegado por tarea; `MockClient` simula progreso y archivos para los tests.
+
+## WebSocket
+
+```swift
+@Repository
+protocol ChatRepository: Sendable {
+    @Socket("/ws/chat/:room")
+    func chat(room: String) async throws -> Socket<Outgoing, Incoming>
+}
+
+let chat = try await rooms.chat(room: "general")      // espera el handshake; lanza si lo rechazan
+try await chat.send(Outgoing(text: "hola"))
+for try await message in chat.messages { … }         // termina al cerrar; lanza si la conexión cae
+chat.close()
+```
+
+`String` viaja como texto, `Data` como binario y cualquier `Codable` como JSON. `https://` se convierte en `wss://` (y `http://` en `ws://`, solo en Debug). No reconecta solo: si la conexión cae, `messages` termina con error y tú decides. Para pruebas, `JadeTesting` trae `LocalWebSocketServer`, un servidor eco real sobre Network.framework, que es con lo que se prueba la librería.
 
 ## Defaults seguros (nivel 1)
 

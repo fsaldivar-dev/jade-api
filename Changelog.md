@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - Unreleased
+Iteración 3: transporte avanzado.
+
+### Added
+- Streams con `@Api(kind:)`: `.bytes`, `.lines`, `.ndjson` (elemento `Decodable` por línea) y `.sse`
+  (`ServerEvent`); `HTTPClient.stream` con default de una pieza y `URLSession.bytes(for:)`;
+  `StreamingResponse`, `StreamParsing`; `MockClient.onStream`.
+- Descargas y subidas: `kind: .download` → `Download` (progreso, `file()`, `pause()`/`resume()` por
+  `resumeData`, `cancel()`), `kind: .upload` → `Upload` (progreso, `response()`, `value()`),
+  `FileUpload` y `Multipart`, `TransferClient` (URLSession con delegado por tarea; `MockClient` simulado),
+  `DownloadQueue` con límite y progreso agregado, `TransferStateBox` para transportes propios.
+- WebSocket: `@Socket("/ruta")` → `Socket<Saliente, Entrante>` (texto, binario o JSON según los tipos),
+  `SocketConnection`/`SocketClient`, `URLSessionWebSocketTask` con espera del handshake, `SocketClosed`;
+  `SecurityPolicy` acepta `wss` siempre y `ws` solo en Debug; `LocalWebSocketServer` en `JadeTesting`.
+- `HTTPError.unsupported` cuando el transporte no sabe hacer la operación.
+
 ## [0.2.0] - Unreleased
 Iteración 2: el pipeline, los defaults seguros del nivel 1 y los servicios del nivel 2.
 
