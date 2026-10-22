@@ -32,7 +32,7 @@ struct LoginView: View {
                     ForEach(Stage.allCases) { stage in Text(stage.rawValue).tag(stage) }
                 }
                 .pickerStyle(.segmented)
-                Text(model.stage.baseURL.absoluteString).font(.caption.monospaced()).foregroundStyle(.secondary)
+                Text(model.stage.servicesSummary).font(.caption.monospaced()).foregroundStyle(.secondary)
 
                 if let profile = model.profile {
                     VStack(alignment: .leading, spacing: 6) {

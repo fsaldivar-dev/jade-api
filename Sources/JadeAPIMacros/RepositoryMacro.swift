@@ -14,6 +14,7 @@ public struct RepositoryMacro: PeerMacro {
             return []
         }
         let access = proto.modifiers.contains { $0.name.tokenKind == .keyword(.public) } ? "public " : ""
+        let service = Self.serviceArgument(of: node, in: context)
         var methods: [String] = []
 
         let protocolOptions = Self.optionsExpression(from: proto.attributes, apiTimeout: nil)
@@ -43,16 +44,43 @@ public struct RepositoryMacro: PeerMacro {
             let list = arguments.map { $0.expression.trimmedDescription }.joined(separator: ", ")
             assignment = "self.client = client.with(interceptors: [\(list)])"
         }
+        let serviceLiteral = service.map { "\"\($0)\"" } ?? "JadeAPI.Environment.defaultService"
         return [DeclSyntax(stringLiteral: """
         @AnnotationSwift.Decorable
         \(access)struct \(name)Client: \(name), Sendable {
+            /// Servicio del ``Environment`` al que pertenece este repositorio.
+            \(access)static let service: String = \(serviceLiteral)
+
             \(access)let client: JadeAPI.AppClient
 
             \(access)init(client: JadeAPI.AppClient) {
                 \(assignment)
+            }
+
+            /// Cliente del servicio `\(service ?? "default")` resuelto por el entorno.
+            \(access)init(environment: JadeAPI.Environment) throws {
+                self.init(client: try environment.client(for: Self.service))
+            }
+
+            /// Fábrica: `\(name)Client.live(in: environment)`.
+            \(access)static func live(in environment: JadeAPI.Environment) throws -> \(name)Client {
+                try \(name)Client(environment: environment)
             }\(body)
         }
         """)]
+    }
+
+    /// `@Repository(service: "payments")` → `"payments"`.
+    static func serviceArgument(of node: AttributeSyntax, in context: some MacroExpansionContext) -> String? {
+        guard case .argumentList(let list)? = node.arguments,
+              let argument = list.first(where: { $0.label?.text == "service" }) else { return nil }
+        guard let literal = argument.expression.as(StringLiteralExprSyntax.self),
+              !literal.segments.contains(where: { $0.is(ExpressionSegmentSyntax.self) }) else {
+            context.error(argument.expression, id: "service", "@Repository(service:) must be a plain string literal")
+            return nil
+        }
+        let value = literal.segments.map { $0.trimmedDescription }.joined()
+        return value.isEmpty ? nil : value
     }
 
     /// Atributos que @Repository consume y no copia al método generado.
@@ -246,5 +274,30 @@ extension String {
         var text = self
         while text.hasSuffix(",") || text.hasSuffix(" ") { text.removeLast() }
         return text
+    }
+}
+
+
+// MARK: - Rol extension: `let repo: UsersRepository = try .live(in: environment)`
+
+extension RepositoryMacro: ExtensionMacro {
+    public static func expansion(
+        of node: AttributeSyntax,
+        attachedTo declaration: some DeclGroupSyntax,
+        providingExtensionsOf type: some TypeSyntaxProtocol,
+        conformingTo protocols: [TypeSyntax],
+        in context: some MacroExpansionContext
+    ) throws -> [ExtensionDeclSyntax] {
+        guard let proto = declaration.as(ProtocolDeclSyntax.self) else { return [] }
+        let access = proto.modifiers.contains { $0.name.tokenKind == .keyword(.public) } ? "public " : ""
+        let name = type.trimmedDescription
+        return [try ExtensionDeclSyntax("""
+        extension \(raw: name) where Self == \(raw: name)Client {
+            /// Implementación real resuelta por el entorno: `let repo: \(raw: name) = try .live(in: environment)`.
+            \(raw: access)static func live(in environment: JadeAPI.Environment) throws -> Self {
+                try \(raw: name)Client(environment: environment)
+            }
+        }
+        """)]
     }
 }

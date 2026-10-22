@@ -11,7 +11,7 @@ struct Profile: Codable, Sendable { let id: Int; let name: String; let role: Str
 // Los decoradores se apilan directo: `Logged` y `Retry` están marcados @Annotation más abajo y el
 // plugin AnnotationRegistry (activado en Package.swift) genera sus declaraciones al compilar.
 
-@Repository
+@Repository(service: "auth")
 protocol AuthRepository: Sendable {
     @Logged
     @Api("/auth", method: .post)
@@ -22,7 +22,7 @@ protocol AuthRepository: Sendable {
     func logout(token: Header<String>) async throws
 }
 
-@Repository
+@Repository(service: "auth")
 protocol ProfileRepository: Sendable {
     @Logged
     @Retry(2)                            // Logged envuelve a Retry: un solo log para los dos intentos

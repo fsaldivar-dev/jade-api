@@ -26,7 +26,7 @@ struct CatalogErrorMapper: Transformer {
 
 // MARK: - Repositorio: fase 2 completa en un protocolo
 
-@Repository
+@Repository(service: "catalog")
 @Unwrap("data")                              // todas las respuestas vienen como {data: …}
 @ErrorTransform(CatalogErrorMapper.self)     // los errores del servidor se vuelven CatalogError
 @Retries(2, backoff: .constant(.milliseconds(200)))

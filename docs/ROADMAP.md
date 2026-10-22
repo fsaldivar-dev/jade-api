@@ -128,6 +128,23 @@ distinto (`@Retries`, `@CacheFor`) para no chocar con decoradores del usuario ll
 
 ---
 
+## Niveles (acordado tras la iteración 2)
+
+La librería se presenta por tamaño de app, con *progressive disclosure*: quien está en un nivel no ve
+los conceptos del siguiente.
+
+- **Nivel 1 · un dominio** — hecho. `@Repository`, `@Api`, `AppClient`, `MockClient` y defaults seguros:
+  solo HTTPS fuera de Debug, `@Retries` exige `@Idempotent` en POST/PATCH, logger mudo en release,
+  `JadeTesting` aparte, aviso de secretos fijos.
+- **Nivel 2 · varios dominios** — hecho. `@Repository(service:)`, `Environment` desde `.xcconfig` +
+  Info.plist (el estándar de Xcode; se descartó un archivo de configuración propio), capas
+  entorno → servicio → repositorio → endpoint, overrides solo en Debug, mocks por servicio.
+- **Nivel 3 · big app** — pendiente. Módulos que solo declaran e inyectan el `Environment`;
+  `KeychainTokenProvider`, pinning con rotación, DPoP o mTLS, firmas RFC 9421, App Attest, PAR + PKCE
+  con discovery OIDC, `SECURITY.md` con el mapeo MASVS; después, generador desde OpenAPI.
+
+La iteración 3 de transporte se construye después del nivel 2 y antes del nivel 3.
+
 ## Iteración 3 · Transporte avanzado (v0.3)
 
 **Objetivo:** cuatro familias de retorno: valor, stream, transferencia, conexión. Una sola palabra para elegirla.

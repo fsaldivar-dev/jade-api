@@ -103,3 +103,22 @@ public final class MockClient: HTTPClient, @unchecked Sendable {
         return Response(status: mock.status, headers: mock.headers, body: mock.body, request: request)
     }
 }
+
+extension Environment {
+    /// Un solo servicio en mock, el resto como esté: así se prueba un módulo sin levantar todo.
+    ///
+    /// ```swift
+    /// let environment = try Environment(plist: fixturePlist).mocking("payments", with: MockClient()
+    ///     .on(.post, "/charges") { _ in .json(Fixtures.charge) })
+    /// ```
+    public func mocking(_ service: String = Environment.defaultService, with mock: MockClient) -> Environment {
+        overriding(service: service, transport: mock)
+    }
+
+    /// Todos los servicios al mismo mock.
+    public func mockingAll(with mock: MockClient) -> Environment {
+        var copy = self
+        for name in services.keys { copy = copy.overriding(service: name, transport: mock) }
+        return copy
+    }
+}

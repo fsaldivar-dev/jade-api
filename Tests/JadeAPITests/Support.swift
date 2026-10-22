@@ -216,3 +216,41 @@ protocol OrdersRepository: Sendable {
     @Api("/orders/:id")
     func order(id: Int) async throws -> User                 // GET: hereda los reintentos del protocolo
 }
+
+// MARK: - Nivel 2: servicios
+
+@Repository(service: "payments")
+protocol WalletRepository: Sendable {
+    @Api("/wallet")
+    func wallet() async throws -> Response
+}
+
+@Repository(service: "users")
+protocol AccountRepository: Sendable {
+    @Api("/account")
+    func account() async throws -> Response
+}
+
+/// Sin `service:` → servicio por defecto.
+@Repository
+protocol PingRepository: Sendable {
+    @Api("/ping")
+    func ping() async throws -> Response
+}
+
+enum FixturePlist {
+    static var twoServices: [String: Any] { [
+        "stage": "staging",
+        "headers": ["Accept": "application/json", "X-App": "jade"],
+        "services": [
+            "users": ["baseURL": "https://users.staging.ejemplo.com/v2"],
+            "payments": [
+                "baseURL": "https://payments.staging.ejemplo.com/v3",
+                "headers": ["X-Service": "payments"],
+                "timeout": "10",
+                "retries": 0,
+                "cache": "30",
+            ],
+        ],
+    ] }
+}

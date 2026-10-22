@@ -26,30 +26,32 @@ final class SessionModel {
     private var auth: AuthRepository
     private var profiles: ProfileRepository
     private var catalog: CatalogRepository
-    private var client: AppClient
+    private var client: AppClient          // el del servicio "catalog": lo usan los grupos
 
     init(stage: Stage) {
         self.stage = stage
-        let client = Self.makeClient(stage)
-        self.client = client
-        auth = AuthRepositoryClient(client: client)
-        profiles = ProfileRepositoryClient(client: client)
-        catalog = CatalogRepositoryClient(client: client)
+        let environment = Self.makeEnvironment(stage)
+        auth = try! .live(in: environment)                 // AuthRepository → servicio "auth"
+        profiles = try! .live(in: environment)             // ProfileRepository → servicio "auth"
+        catalog = try! .live(in: environment)              // CatalogRepository → servicio "catalog"
+        client = try! environment.client(for: "catalog")
     }
 
-    /// Un solo cliente para toda la app: auth por interceptor y log con cURL redactado.
-    private static func makeClient(_ stage: Stage) -> AppClient {
-        AppClient(stage: stage, interceptors: [
+    /// Un entorno para toda la app: auth por interceptor y log redactado, en la capa de entorno.
+    /// `try!` solo porque la configuración es estática y validada; una app real propaga el error al arranque.
+    private static func makeEnvironment(_ stage: Stage) -> Environment {
+        try! stage.environment(interceptors: [
             AuthInterceptor(tokens: SessionTokens.shared),
             RequestLogger(.line, sink: { Log.append($0) }),
         ])
     }
 
     private func rebuild() {
-        client = Self.makeClient(stage)
-        auth = AuthRepositoryClient(client: client)
-        profiles = ProfileRepositoryClient(client: client)
-        catalog = CatalogRepositoryClient(client: client)
+        let environment = Self.makeEnvironment(stage)
+        auth = try! .live(in: environment)
+        profiles = try! .live(in: environment)
+        catalog = try! .live(in: environment)
+        client = try! environment.client(for: "catalog")
         token = nil; profile = nil; error = nil
         featured = []; categories = []; details = [:]; catalogError = nil
         Task { await SessionTokens.shared.set(nil) }

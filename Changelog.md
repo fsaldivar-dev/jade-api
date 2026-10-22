@@ -5,9 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.2.0] - Unreleased
-Iteración 2: el pipeline, y los defaults seguros del nivel 1.
+Iteración 2: el pipeline, los defaults seguros del nivel 1 y los servicios del nivel 2.
 
 ### Added
+- Nivel 2: `Environment` (servicios, capas entorno → servicio, `client(for:)`, `validate()`),
+  `ServiceConfiguration`, `Environment(bundle:)`/`Environment(plist:)` desde el Info.plist alimentado
+  por `.xcconfig`, overrides `applyingLaunchOverrides()` solo en Debug, `EnvironmentError`.
+- `@Repository(service:)`, `init(environment:)` y la fábrica `live(in:)` (también como
+  `let repo: X = try .live(in:)` gracias al rol `extension` de la macro).
+- `JadeTesting`: `environment.mocking(service, with:)` y `mockingAll(with:)`.
 - `SecurityPolicy` en `AppClient.security`: solo HTTPS fuera de Debug (`HTTPError.insecureURL`),
   claves sensibles para redacción. `SecurityAudit` avisa en Debug de headers de credencial con valor fijo.
 - `@Idempotent`: `Idempotency-Key` única por llamada, repetida en los reintentos. `@Retries` sobre

@@ -154,6 +154,70 @@ protocol UsersRepository {
 
 Orden de arriba abajo: `Retry` envuelve a `Logged`, que envuelve la petición. Sin el plugin, declara el marcador (`@attached(peer) macro Retry(_ attempts: Int) = #externalMacro(module: "AnnotationMacros", type: "MarkerMacro")`) o usa `@Decorate(Retry(3), Logged())`. Los decoradores de red incluidos (`@Retry` consciente de idempotencia, `@Timeout`, `@Cached`, `@SingleFlight`) llegan en la iteración 2.
 
+## Nivel 2: varios servicios
+
+Cuando usuarios y pagos viven en hosts distintos, el repositorio declara **a qué servicio pertenece**, no a qué URL, y un `Environment` resuelve el resto:
+
+```swift
+@Repository(service: "payments")
+protocol PaymentsRepository: Sendable {
+    @Api("/charges/:id") func charge(id: String) async throws -> Charge
+}
+
+let environment = try Environment(bundle: .main)          // lee el Info.plist (ver abajo)
+let payments: PaymentsRepository = try .live(in: environment)   // base, headers, interceptores y opciones de "payments"
+```
+
+### Dónde viven los entornos: xcconfig, el estándar de Xcode
+
+Un `.xcconfig` por Build Configuration y un diccionario `JadeAPI` en el `Info.plist` con sustituciones `$(…)`. Lo que no está en `Release.xcconfig` no existe en el binario de tienda; eso es lo que un auditor comprueba (PCI DSS 6.5, OWASP MASTG).
+
+```
+// Config/Release.xcconfig
+HTTPS = https:/$()/
+JADE_STAGE = prod
+JADE_USERS_BASE_URL    = $(HTTPS)users.api.ejemplo.com/v2
+JADE_PAYMENTS_BASE_URL = $(HTTPS)payments.api.ejemplo.com/v3
+
+// Config/Debug.xcconfig
+JADE_STAGE = dev
+JADE_PAYMENTS_BASE_URL = http:/$()/localhost:8080
+#include? "Local.xcconfig"          // en .gitignore: tu sandbox, sin tocar git
+```
+
+```xml
+<key>JadeAPI</key>
+<dict>
+    <key>stage</key><string>$(JADE_STAGE)</string>
+    <key>services</key>
+    <dict>
+        <key>users</key>    <dict><key>baseURL</key><string>$(JADE_USERS_BASE_URL)</string></dict>
+        <key>payments</key> <dict><key>baseURL</key><string>$(JADE_PAYMENTS_BASE_URL)</string>
+                                  <key>timeout</key><string>10</string><key>retries</key><string>0</string></dict>
+    </dict>
+</dict>
+```
+
+Por servicio: `baseURL`, `headers`, `timeout`, `cache`, `retries`. `Environment` valida al arrancar: servicio ausente, URL inválida, `http://` fuera de Debug, y un header con nombre de credencial es error (los secretos no viven en la configuración). Para paquetes sin Info.plist, `Environment(plist:)` o `Environment(services:)` en código.
+
+### Capas
+
+Los interceptores, headers y opciones se componen de afuera hacia adentro: **entorno → servicio → repositorio (`@Interceptors`) → endpoint**. Así pagos puede tener su propio `AuthInterceptor` y usuarios otro, con el log común en la capa de entorno.
+
+### Overrides de desarrollo
+
+`environment.applyingLaunchOverrides()` lee `--service.payments=http://localhost:8080` y `JADE_SERVICE_PAYMENTS=…`. **Solo compila en Debug**: en release la función no existe, así que nada externo puede mover el tráfico.
+
+### Probar un módulo con un solo servicio falso
+
+```swift
+let environment = try Environment(plist: fixtures)
+    .mocking("payments", with: MockClient().on(.post, "/charges") { _ in .json(Fixtures.charge) })
+let payments: PaymentsRepository = try .live(in: environment)    // el resto del entorno, intacto
+```
+
+Sin `service:`, el repositorio usa el servicio por defecto y `AppClient(baseURL:)` sigue funcionando: el nivel 1 no cambia.
+
 ## Interceptores
 
 Tocan el HTTP crudo. Una función y un `next`, igual que un decorador:
@@ -264,7 +328,7 @@ Declara los repositorios como `protocol X: Sendable`. El cliente generado es `Se
 
 ## Ejemplo
 
-[`Examples/Login`](Examples/Login): app SwiftUI con selector de entorno (dev, prod, mock), login con repositorios declarados, `@Logged @Retry(2)` registrados con `@Annotation` y el plugin, y un catálogo que usa toda la fase 2: `AuthInterceptor` + `RequestLogger`, `@Unwrap` + `@Transform` + `@ErrorTransform`, `@Retries` (la primera carga recibe un 503), `@CacheFor`, `@SingleFlight`, `timeout`, `client.all` y `groupSettled`.
+[`Examples/Login`](Examples/Login): app SwiftUI con selector de entorno (dev, prod, mock), dos servicios (`auth` y `catalog`) resueltos por `Environment` y `live(in:)`, `.xcconfig` de muestra en `Config/`, login con repositorios declarados, `@Logged @Retry(2)` registrados con `@Annotation` y el plugin, y un catálogo que usa toda la fase 2: `AuthInterceptor` + `RequestLogger`, `@Unwrap` + `@Transform` + `@ErrorTransform`, `@Retries` (la primera carga recibe un 503), `@CacheFor`, `@SingleFlight`, `timeout`, `client.all` y `groupSettled`.
 
 ```bash
 swift run --package-path Examples/Login

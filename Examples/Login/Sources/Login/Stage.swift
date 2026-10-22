@@ -2,25 +2,51 @@ import Foundation
 import JadeAPI
 import JadeTesting
 
-/// Entornos de la app. `mock` responde con fixtures sin tocar la red.
-enum Stage: String, StageProtocol, CaseIterable, Identifiable {
+/// Entornos de la app. En una app con proyecto de Xcode esto sale de `Environment(bundle: .main)`,
+/// que lee el Info.plist alimentado por los `.xcconfig` de `Config/` (uno por Build Configuration).
+/// Este ejemplo es un paquete SwiftPM sin Info.plist, así que construye el mismo `Environment` en código.
+enum Stage: String, CaseIterable, Identifiable {
     case dev, prod, mock
 
     var id: String { rawValue }
 
-    var baseURL: URL {
+    /// Dos servicios: `auth` y `catalog`, cada uno con su base.
+    var plist: [String: Any] {
         switch self {
-        case .dev: URL(string: "https://dev.api.ejemplo.com/v1")!
-        case .prod: URL(string: "https://api.ejemplo.com/v1")!
-        case .mock: URL(string: "https://mock.local")!
+        case .dev: ["stage": "dev", "services": [
+            "auth":    ["baseURL": "https://auth.dev.ejemplo.com"],
+            "catalog": ["baseURL": "https://catalog.dev.ejemplo.com/v2", "timeout": "10", "retries": "2"]]]
+        case .prod: ["stage": "prod", "services": [
+            "auth":    ["baseURL": "https://auth.ejemplo.com"],
+            "catalog": ["baseURL": "https://catalog.ejemplo.com/v2", "timeout": "10", "retries": "2"]]]
+        case .mock: ["stage": "mock", "services": [
+            "auth":    ["baseURL": "https://auth.mock.local"],
+            "catalog": ["baseURL": "https://catalog.mock.local/v2", "retries": "2"]]]
         }
     }
 
-    var transport: any HTTPClient {
-        switch self {
-        case .mock: Fixtures.client
-        case .dev, .prod: URLSessionClient()
-        }
+    /// `Environment` del stage. En `mock`, los dos servicios van al mismo `MockClient` de fixtures.
+    func environment(interceptors: [any Interceptor]) throws -> Environment {
+        var environment = try Environment(plist: plist)
+        environment.interceptors = interceptors
+        #if DEBUG
+        environment = environment.applyingLaunchOverrides()   // --service.catalog=http://localhost:8080
+        #endif
+        if self == .mock { environment = environment.mockingAll(with: Fixtures.client) }
+        return environment
+    }
+
+    /// "auth → https://…  ·  catalog → https://…", para la UI.
+    var servicesSummary: String {
+        ((plist["services"] as? [String: [String: Any]]) ?? [:])
+            .sorted { $0.key < $1.key }
+            .map { "\($0.key) → \($0.value["baseURL"] ?? "")" }
+            .joined(separator: "  ·  ")
+    }
+
+    static func resolve(fallback: Stage) -> Stage {
+        let argument = CommandLine.arguments.first { $0.hasPrefix("--stage=") }.map { String($0.dropFirst("--stage=".count)) }
+        return argument.flatMap(Stage.init(rawValue:)) ?? ProcessInfo.processInfo.environment["JADE_STAGE"].flatMap(Stage.init(rawValue:)) ?? fallback
     }
 }
 

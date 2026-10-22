@@ -1,0 +1,6 @@
+// TestFlight interno: staging, sin overrides de desarrollador.
+#include "Base.xcconfig"
+JADE_STAGE = staging
+JADE_AUTH_BASE_URL    = $(HTTPS)auth.staging.ejemplo.com
+JADE_CATALOG_BASE_URL = $(HTTPS)catalog.staging.ejemplo.com/v2
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited)

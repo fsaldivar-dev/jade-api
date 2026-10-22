@@ -1,0 +1,2 @@
+// Copia este archivo como Local.xcconfig (está en .gitignore) y apunta solo el servicio que estés tocando.
+JADE_CATALOG_BASE_URL = $(HTTP)192.168.1.20:8080

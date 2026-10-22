@@ -42,10 +42,23 @@ final class RepositoryMacroTests: XCTestCase {
 
             @AnnotationSwift.Decorable
             public struct UsersRepositoryClient: UsersRepository, Sendable {
+                /// Servicio del ``Environment`` al que pertenece este repositorio.
+                public static let service: String = JadeAPI.Environment.defaultService
+
                 public let client: JadeAPI.AppClient
 
                 public init(client: JadeAPI.AppClient) {
                     self.client = client
+                }
+
+                /// Cliente del servicio `default` resuelto por el entorno.
+                public init(environment: JadeAPI.Environment) throws {
+                    self.init(client: try environment.client(for: Self.service))
+                }
+
+                /// Fábrica: `UsersRepositoryClient.live(in: environment)`.
+                public static func live(in environment: JadeAPI.Environment) throws -> UsersRepositoryClient {
+                    try UsersRepositoryClient(environment: environment)
                 }
 
                 @Retry(3)
@@ -65,6 +78,13 @@ final class RepositoryMacroTests: XCTestCase {
                     let __headers: [String: String] = [:]
                     let __endpoint = JadeAPI.Endpoint(name: "deleteUser(id:)", method: .delete, path: "/user", pathParameters: [:], query: [("id", JadeAPI.ParameterValue.text(id))], headers: __headers, body: nil)
                     return try await client.performVoid(__endpoint)
+                }
+            }
+
+            extension UsersRepository where Self == UsersRepositoryClient {
+                /// Implementación real resuelta por el entorno: `let repo: UsersRepository = try .live(in: environment)`.
+                public static func live(in environment: JadeAPI.Environment) throws -> Self {
+                    try UsersRepositoryClient(environment: environment)
                 }
             }
             """,
@@ -104,10 +124,23 @@ final class RepositoryMacroTests: XCTestCase {
 
             @AnnotationSwift.Decorable
             struct ProfilesRepositoryClient: ProfilesRepository, Sendable {
+                /// Servicio del ``Environment`` al que pertenece este repositorio.
+                static let service: String = JadeAPI.Environment.defaultService
+
                 let client: JadeAPI.AppClient
 
                 init(client: JadeAPI.AppClient) {
                     self.client = client.with(interceptors: [Trace(name: "repo")])
+                }
+
+                /// Cliente del servicio `default` resuelto por el entorno.
+                init(environment: JadeAPI.Environment) throws {
+                    self.init(client: try environment.client(for: Self.service))
+                }
+
+                /// Fábrica: `ProfilesRepositoryClient.live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> ProfilesRepositoryClient {
+                    try ProfilesRepositoryClient(environment: environment)
                 }
 
                 func profile(id: Int) async throws -> Profile {
@@ -139,6 +172,13 @@ final class RepositoryMacroTests: XCTestCase {
                     } catch {
                         throw client.mapError(error, with: APIErrorMapper.self)
                     }
+                }
+            }
+
+            extension ProfilesRepository where Self == ProfilesRepositoryClient {
+                /// Implementación real resuelta por el entorno: `let repo: ProfilesRepository = try .live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> Self {
+                    try ProfilesRepositoryClient(environment: environment)
                 }
             }
             """,
@@ -173,10 +213,23 @@ final class RepositoryMacroTests: XCTestCase {
 
             @AnnotationSwift.Decorable
             struct OrdersClient: Orders, Sendable {
+                /// Servicio del ``Environment`` al que pertenece este repositorio.
+                static let service: String = JadeAPI.Environment.defaultService
+
                 let client: JadeAPI.AppClient
 
                 init(client: JadeAPI.AppClient) {
                     self.client = client
+                }
+
+                /// Cliente del servicio `default` resuelto por el entorno.
+                init(environment: JadeAPI.Environment) throws {
+                    self.init(client: try environment.client(for: Self.service))
+                }
+
+                /// Fábrica: `OrdersClient.live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> OrdersClient {
+                    try OrdersClient(environment: environment)
                 }
 
                 func placeSafely() async throws {
@@ -190,6 +243,13 @@ final class RepositoryMacroTests: XCTestCase {
                     let __headers: [String: String] = [:]
                     let __endpoint = JadeAPI.Endpoint(name: "cancel(id:)", method: .post, path: "/orders/:id/cancel", pathParameters: ["id": JadeAPI.ParameterValue.text(id) ?? ""], query: [], headers: __headers, body: nil, options: JadeAPI.RequestOptions(retry: JadeAPI.RetryPolicy(attempts: 1)).merging(over: JadeAPI.RequestOptions(retry: JadeAPI.RetryPolicy(attempts: 3))))
                     return try await client.performVoid(__endpoint)
+                }
+            }
+
+            extension Orders where Self == OrdersClient {
+                /// Implementación real resuelta por el entorno: `let repo: Orders = try .live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> Self {
+                    try OrdersClient(environment: environment)
                 }
             }
             """,
@@ -223,10 +283,23 @@ final class RepositoryMacroTests: XCTestCase {
 
             @AnnotationSwift.Decorable
             struct BrokenClient: Broken, Sendable {
+                /// Servicio del ``Environment`` al que pertenece este repositorio.
+                static let service: String = JadeAPI.Environment.defaultService
+
                 let client: JadeAPI.AppClient
 
                 init(client: JadeAPI.AppClient) {
                     self.client = client
+                }
+
+                /// Cliente del servicio `default` resuelto por el entorno.
+                init(environment: JadeAPI.Environment) throws {
+                    self.init(client: try environment.client(for: Self.service))
+                }
+
+                /// Fábrica: `BrokenClient.live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> BrokenClient {
+                    try BrokenClient(environment: environment)
                 }
 
                 func interpolated() async throws -> Int {
@@ -239,6 +312,13 @@ final class RepositoryMacroTests: XCTestCase {
                     let __headers: [String: String] = [:]
                     let __endpoint = JadeAPI.Endpoint(name: "badMethod()", method: .get, path: "/x", pathParameters: [:], query: [], headers: __headers, body: nil)
                     return try await client.perform(__endpoint)
+                }
+            }
+
+            extension Broken where Self == BrokenClient {
+                /// Implementación real resuelta por el entorno: `let repo: Broken = try .live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> Self {
+                    try BrokenClient(environment: environment)
                 }
             }
             """,

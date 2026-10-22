@@ -21,8 +21,22 @@
 ///
 /// Reglas: todo requisito lleva `@Api` y es `async throws`. El retorno puede ser `Decodable`,
 /// `Data`, `String`, `Void` o ``Response``.
+///
+/// **Nivel 2.** Con `service:` el repositorio declara a qué servicio del ``Environment`` pertenece y
+/// gana una fábrica que resuelve base, headers, interceptores y opciones de ese servicio:
+///
+/// ```swift
+/// @Repository(service: "payments")
+/// protocol PaymentsRepository: Sendable { … }
+///
+/// let environment = try Environment(bundle: .main)
+/// let payments: PaymentsRepository = try .live(in: environment)      // o PaymentsRepositoryClient.live(in:)
+/// ```
+///
+/// Sin `service:` se usa ``Environment/defaultService`` y todo funciona como en el nivel 1.
 @attached(peer, names: suffixed(Client))
-public macro Repository() = #externalMacro(module: "JadeAPIMacros", type: "RepositoryMacro")
+@attached(extension, names: named(live))
+public macro Repository(service: String? = nil) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryMacro")
 
 /// Describe el endpoint de un requisito.
 ///
