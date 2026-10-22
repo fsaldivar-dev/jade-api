@@ -42,6 +42,10 @@ protocol UsersRepository: Sendable {
     @Api("/users/:id/flaky")
     func flaky(id: Int) async throws -> User                                     // decorador copiado
 
+    @Decorate(Retry(3))
+    @Api("/users/:id/flaky-inline")
+    func flakyInline(id: Int) async throws -> User                               // sin marcador declarado
+
     @Api
     func deleteUser(id: Int) async throws                                        // DELETE /user?id= → Void
 

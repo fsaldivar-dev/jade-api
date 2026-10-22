@@ -142,7 +142,7 @@ protocol UsersRepository {
 }
 ```
 
-Orden de arriba abajo: `Retry` envuelve a `Logged`, que envuelve la petición. Los decoradores de red incluidos (`@Retry` consciente de idempotencia, `@Timeout`, `@Cached`, `@SingleFlight`) llegan en la iteración 2.
+Orden de arriba abajo: `Retry` envuelve a `Logged`, que envuelve la petición. Si no quieres declarar marcadores, `@Decorate(Retry(3), Logged())` hace lo mismo sin la línea `@attached(peer) macro …`. Los decoradores de red incluidos (`@Retry` consciente de idempotencia, `@Timeout`, `@Cached`, `@SingleFlight`) llegan en la iteración 2.
 
 ## Concurrencia
 

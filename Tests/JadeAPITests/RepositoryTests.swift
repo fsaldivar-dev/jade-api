@@ -104,6 +104,16 @@ struct RepositoryTests {
         #expect(mock.received.count == 3)
     }
 
+    @Test("@Decorate(Retry(3)) en el protocolo también se transcribe")
+    func decorateFormCopiedFromProtocol() async throws {
+        let counter = Counter()
+        mock.on(.get, "/users/:id/flaky-inline") { _ in
+            counter.increment() < 2 ? .status(503) : .json(#"{"id": 6, "name": "Al segundo"}"#)
+        }
+        #expect(try await users.flakyInline(id: 6).name == "Al segundo")
+        #expect(mock.received.count == 2)
+    }
+
     @Test("Errores tipados: status, decodificación y sin mock")
     func errors() async throws {
         mock.on(.get, "/users/:id") { request in
