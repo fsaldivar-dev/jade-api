@@ -10,7 +10,7 @@ JadeAPI necesita Swift 6.2 y un repositorio declarado como `protocol`. Todo lo d
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/fsaldivar-dev/jade-api.git", from: "0.8.0")
+.package(url: "https://github.com/fsaldivar-dev/jade-api.git", from: "0.9.0")
 // en el target:
 .product(name: "JadeAPI", package: "jade-api")
 ```
