@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - Unreleased
+## [0.4.0] - 2026-10-21
 Nivel 3: seguridad bancaria.
 
 ### Added
@@ -19,7 +19,7 @@ Nivel 3: seguridad bancaria.
 - App Attest: `Attestor`, `ChallengeProvider`, `DeviceCheckAttestor`, `AppAttestInterceptor`.
 - `SECURITY.md`: modelo de amenaza, mapeo MASVS 2.0, responsabilidades del servidor.
 
-## [0.3.0] - Unreleased
+## [0.3.0] - 2026-10-21
 Iteración 3: transporte avanzado.
 
 ### Added
@@ -35,7 +35,7 @@ Iteración 3: transporte avanzado.
   `SecurityPolicy` acepta `wss` siempre y `ws` solo en Debug; `LocalWebSocketServer` en `JadeTesting`.
 - `HTTPError.unsupported` cuando el transporte no sabe hacer la operación.
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-10-21
 Iteración 2: el pipeline, los defaults seguros del nivel 1 y los servicios del nivel 2.
 
 ### Added
@@ -69,7 +69,7 @@ Iteración 2: el pipeline, los defaults seguros del nivel 1 y los servicios del 
 - Las peticiones del `MockClient` se registran al recibirse, antes de la latencia.
 - `MockClient` se mueve de `JadeAPI` a `JadeTesting`; `HTTPError.unmocked` pasa a `MockError.unmocked`.
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-10-21
 Iteración 1: declarar y llamar.
 
 ### Added

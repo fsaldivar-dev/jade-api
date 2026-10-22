@@ -16,8 +16,7 @@ let package = Package(
     ],
     dependencies: [
         // Anotaciones apilables: @Decorable, Decorator, GuardDecorator, HookDecorator, MarkerMacro.
-        // TODO(1.0.2): volver a `from: "1.0.2"` cuando se publique el release del núcleo.
-        .package(url: "https://github.com/fsaldivar-dev/experimental-annotation-swift.git", branch: "feature/markers-in-protocols"),
+        .package(url: "https://github.com/fsaldivar-dev/experimental-annotation-swift.git", from: "1.1.0"),
         .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"605.0.0"),
         .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.0"),
     ],
