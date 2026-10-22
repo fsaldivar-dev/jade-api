@@ -26,7 +26,7 @@ struct TestApp {
     }
 
     func signIn() async throws {
-        await run { await session.signIn(username: "emilys", password: "emilyspass") }
+        await run { await session.signIn(username: "emilys", password: Fixtures.users["emilys"]!) }
         guard session.isSignedIn else { throw NotSignedIn() }
     }
     struct NotSignedIn: Error {}

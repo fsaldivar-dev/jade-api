@@ -11,7 +11,7 @@ struct LiveSmokeTests {
     @Test("dummyjson: login, perfil y catálogo")
     func sessionAndCatalog() async throws {
         let app = try AppContainer(stage: .live)
-        await app.session.signIn(username: "emilys", password: "emilyspass")
+        await app.session.signIn(username: "emilys", password: Fixtures.users["emilys"]!)
         guard case .signedIn(let profile) = app.session.status else { Issue.record(Comment(rawValue: app.session.errorMessage ?? "sin sesión")); return }
         #expect(profile.username == "emilys")
 

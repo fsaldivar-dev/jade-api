@@ -56,7 +56,7 @@ decodifica, ``HTTPError/decoding(_:_:)``.
 
 ```swift
 let form = try await login.form()
-let token = try await login.auth(user: "paco", password: "secreto")
+let token = try await login.auth(user: "<usuario>", password: "<contraseña>")
 ```
 
 ### Probar sin red
