@@ -154,7 +154,7 @@ Declara los repositorios como `protocol X: Sendable`. El cliente generado es `Se
 
 ## Ejemplo
 
-[`Examples/Login`](Examples/Login): app SwiftUI con selector de entorno (dev, prod, mock), login con repositorios declarados, `@Logged` y `@Retry` apilados, y panel con lo que hicieron los decoradores.
+[`Examples/Login`](Examples/Login): app SwiftUI con selector de entorno (dev, prod, mock), login con repositorios declarados, `@Decorate(Logged(), Retry(2))` sin declarar marcadores, y panel con lo que hicieron los decoradores.
 
 ```bash
 swift run --package-path Examples/Login

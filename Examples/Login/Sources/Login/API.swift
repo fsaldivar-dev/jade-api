@@ -8,29 +8,28 @@ struct Profile: Codable, Sendable { let id: Int; let name: String; let role: Str
 
 // MARK: - Repositorios: la declaración es el contrato
 
+// Los decoradores van como valores con @Decorate: no hace falta declarar ningún marcador.
+// (La forma apilada `@Logged @Retry(2)` también existe; requiere una línea de registro por decorador.)
+
 @Repository
 protocol AuthRepository: Sendable {
-    @Logged
+    @Decorate(Logged())
     @Api("/auth", method: .post)
     func login(user: String, password: String) async throws -> Token
 
-    @Logged
+    @Decorate(Logged())
     @Api("/auth/logout", method: .post)
     func logout(token: Header<String>) async throws
 }
 
 @Repository
 protocol ProfileRepository: Sendable {
-    @Logged
-    @Retry(2)
+    @Decorate(Logged(), Retry(2))        // Logged envuelve a Retry: un solo log para los dos intentos
     @Api("/me")
     func me(token: Header<String>) async throws -> Profile
 }
 
-// MARK: - Decoradores del usuario (una línea los registra)
-
-@attached(peer) macro Logged() = #externalMacro(module: "AnnotationMacros", type: "MarkerMacro")
-@attached(peer) macro Retry(_ attempts: Int) = #externalMacro(module: "AnnotationMacros", type: "MarkerMacro")
+// MARK: - Decoradores del usuario: tipos normales, sin registro
 
 /// Deja rastro de cada llamada en el panel de la app.
 struct Logged: HookDecorator {
