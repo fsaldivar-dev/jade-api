@@ -1,0 +1,20 @@
+<!-- Fragmento para el Info.plist de la app. Xcode sustituye $(…) con el xcconfig de la configuración activa.
+     Environment(bundle: .main) lee este diccionario; es el mismo formato que Stage.configuration en código. -->
+<key>JadeAPI</key>
+<dict>
+    <key>stage</key>
+    <string>$(JADE_STAGE)</string>
+    <key>services</key>
+    <dict>
+        <key>auth</key>
+        <dict><key>baseURL</key><string>$(JADE_AUTH_BASE_URL)</string></dict>
+        <key>catalog</key>
+        <dict><key>baseURL</key><string>$(JADE_CATALOG_BASE_URL)</string><key>timeout</key><string>10</string></dict>
+        <key>wiki</key>
+        <dict><key>baseURL</key><string>$(JADE_WIKI_BASE_URL)</string></dict>
+        <key>photos</key>
+        <dict><key>baseURL</key><string>$(JADE_PHOTOS_BASE_URL)</string></dict>
+        <key>echo</key>
+        <dict><key>baseURL</key><string>$(JADE_ECHO_BASE_URL)</string></dict>
+    </dict>
+</dict>

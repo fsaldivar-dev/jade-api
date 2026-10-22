@@ -146,6 +146,14 @@ public final class Socket<Outgoing: Sendable, Incoming: Sendable>: Sendable {
         emit.finish()
     }
 
+    /// Cierra la conexión actual y deja que la política abra otra: lo que hace una app al volver de
+    /// segundo plano o cuando `NWPathMonitor` avisa de que cambió la red. Sin política equivale a una
+    /// caída: `messages` termina con error. Después de `close()` no hace nada.
+    public func reconnect() {
+        guard let connection = try? current() else { return }
+        connection.close(code: 1006, reason: "reconnect")   // receive() falla y el bucle entra por la política
+    }
+
     private func current() throws -> any SocketConnection {
         try state.withLock { state in
             guard state.isConnected, !state.closedByUser else { throw SocketDisconnected() }

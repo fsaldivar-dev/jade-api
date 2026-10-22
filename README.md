@@ -471,15 +471,13 @@ Declara los repositorios como `protocol X: Sendable`. El cliente generado es `Se
 
 `HTTPError` es un enum: `invalidURL`, `encoding`, `transport`, `status(Int, Response)`, `decoding(Error, Response)`, `unmocked(Request)`, `cancelled`. Cancelar la `Task` cancela la petición.
 
-## Ejemplo
+## Ejemplo: la guía
 
-[`Examples/Login`](Examples/Login): app SwiftUI con selector de entorno (dev, prod, mock), dos servicios (`auth` y `catalog`) resueltos por `Environment` y `live(in:)`, `.xcconfig` de muestra en `Config/`, login con repositorios declarados, `@Logged @Retry(2)` registrados con `@Annotation` y el plugin, y un catálogo que usa toda la fase 2: `AuthInterceptor` + `RequestLogger`, `@Unwrap` + `@Transform` + `@ErrorTransform`, `@Retries` (la primera carga recibe un 503), `@CacheFor`, `@SingleFlight`, `timeout`, `client.all` y `groupSettled`.
-
-Está organizado como una app real: un target `LoginCore` (dominio, red, entorno, features y raíz de composición) que se prueba sin UI, y la app SwiftUI encima. Ver su [README](Examples/Login/README.md).
+[`Examples/Guide`](Examples/Guide): app macOS con una pestaña por pieza, contra APIs públicas reales (dummyjson para login y catálogo, Wikimedia para SSE, picsum para descargas, echo.websocket.org para el WebSocket) o contra un servidor falso. Cada pestaña es un archivo de vista y un store pequeño con un comentario que dice qué enseña: `@Repository` y `AuthInterceptor`, `@Unwrap`/`@Transform`/`@Retries`/`@CacheFor` con grupos, `kind: .sse`, `DownloadQueue`, `@Socket` con reconexión y `MetricsInterceptor`. Ver su [README](Examples/Guide/README.md).
 
 ```bash
-swift run --package-path Examples/Login            # app (entorno mock por defecto)
-swift test --package-path Examples/Login           # lógica contra los fixtures
+swift run  --package-path Examples/Guide -- --stage=live   # APIs reales (mock por defecto)
+swift test --package-path Examples/Guide                   # lógica sin red contra los fixtures
 ```
 
 ## Cómo funciona

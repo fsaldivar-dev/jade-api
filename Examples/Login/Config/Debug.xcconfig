@@ -1,8 +1,0 @@
-// Desarrollo: dev por defecto, overrides por argumento/variable activos (Environment.applyingLaunchOverrides
-// solo existe en Debug) y un archivo local opcional para apuntar un servicio al sandbox de cada quien.
-#include "Base.xcconfig"
-JADE_STAGE = dev
-JADE_AUTH_BASE_URL    = $(HTTPS)auth.dev.ejemplo.com
-JADE_CATALOG_BASE_URL = $(HTTP)localhost:8080
-SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEBUG
-#include? "Local.xcconfig"

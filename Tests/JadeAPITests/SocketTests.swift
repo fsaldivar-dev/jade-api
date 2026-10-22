@@ -176,6 +176,23 @@ struct SocketTests {
         #expect(!socket.isConnected)
     }
 
+    @Test("reconnect() fuerza una reconexión por la política y el mismo stream sigue")
+    func forcedReconnect() async throws {
+        let server = try await Self.makeServer()
+        defer { server.stop() }
+        let chat: ChatRepository = ChatRepositoryClient(client: AppClient(baseURL: server.baseURL, transport: URLSessionClient()))
+        let socket = try await chat.resilient(room: "f")
+        let events = Events(socket.events)
+        var iterator = socket.messages.makeAsyncIterator()
+        socket.reconnect()
+        #expect(await events.wait { if case .connected(attempt: 1) = $0 { true } else { false } })
+        try await socket.send("otra vez")
+        #expect(try await iterator.next() == "otra vez")
+        socket.close()
+        socket.reconnect()   // después de close no hace nada
+        #expect(!socket.isConnected)
+    }
+
     @Test("Qué reconecta y qué no")
     func policyTable() {
         typealias S = Socket<String, String>

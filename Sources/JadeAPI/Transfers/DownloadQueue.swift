@@ -8,6 +8,17 @@ public struct QueueProgress: Sendable, Equatable {
     public var bytesTransferred: Int64
     public var totalBytes: Int64?
 
+    public init(completed: Int = 0, failed: Int = 0, total: Int = 0, bytesTransferred: Int64 = 0, totalBytes: Int64? = nil) {
+        self.completed = completed
+        self.failed = failed
+        self.total = total
+        self.bytesTransferred = bytesTransferred
+        self.totalBytes = totalBytes
+    }
+
+    /// Cola vacía, para el estado inicial de una pantalla.
+    public static let empty = QueueProgress()
+
     public var fractionCompleted: Double {
         if let totalBytes, totalBytes > 0 { return min(1, Double(bytesTransferred) / Double(totalBytes)) }
         return total == 0 ? 1 : Double(completed + failed) / Double(total)

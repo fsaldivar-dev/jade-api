@@ -9,7 +9,7 @@ que una iteración prometió y no se construyó está en [Deuda](#deuda) con el 
 los ojos abiertos en vez de darlo por hecho. Lo que no está en la iteración en curso no se empieza
 aunque sea fácil: la superficie de la librería es su mayor costo cognitivo.
 
-Última revisión contra el código: 2026-10-22 (0.7.0 publicada).
+Última revisión contra el código: 2026-10-22 (0.7.0 publicada, 0.8.0 en curso).
 
 ---
 
@@ -29,7 +29,7 @@ aunque sea fácil: la superficie de la librería es su mayor costo cognitivo.
   `Path`, `Query`, `Header`, `Body`.
 - Retornos: `Decodable`, `Data`, `String`, `Void`, `Response`. `HTTPError` tipado.
 - `AppClient`, `HTTPClient` (URLSession), `StageProtocol` + `resolve`, `MockClient` en `JadeTesting`, cancelación cooperativa.
-- Diagnósticos de macro y tests de expansión; ejemplo `Examples/Login`.
+- Diagnósticos de macro y tests de expansión; ejemplo `Examples/Login` (hoy `Examples/Guide`).
 
 **No se hizo:** DocC con Quick Start (llegó en 0.6.0, ver deuda).
 
@@ -50,7 +50,7 @@ Regla de bolsillo: *interceptor si tocas HTTP, decorador si tocas la llamada, tr
 `@KeyMapping` (llegó en 0.6.0), codificador multipart como `ConverterFactory` (hay `Multipart` en
 transferencias), `Result<T, HTTPError>` como retorno, `@Authenticated`, progreso agregado de grupos,
 políticas `collect`/`tolerate(n)` (hay `failFast` y `groupSettled`), prioridad por elemento,
-advertencia por pilas invertidas, ejemplo `Examples/Catalog` (el catálogo vive dentro de `Examples/Login`).
+advertencia por pilas invertidas, ejemplo `Examples/Catalog` (el catálogo es una pestaña de `Examples/Guide`).
 
 ## Niveles
 
@@ -74,7 +74,7 @@ advertencia por pilas invertidas, ejemplo `Examples/Catalog` (el catálogo vive 
 
 **No se hizo:** persistencia de la cola de descargas entre lanzamientos, background sessions, métricas en
 transferencias y en el handshake del socket, diagnóstico `kind` ↔ retorno más allá del prefijo del tipo,
-ejemplo `Examples/Media`, servidor HTTP local para descargas.
+servidor HTTP local para descargas (la guía descarga de picsum.photos en `live`).
 
 ## Nivel 3 · Seguridad (0.4, 0.5) — hecho
 
@@ -102,11 +102,11 @@ sigue fuera; si se decide hacerla, se mueve a la iteración en curso.
 | `@Envelope(Type.self)` | envelope tipado | `@Unwrap("data")` resuelve el 90 % |
 | Métricas en transferencias y sockets | `Download`/`Upload`/handshake | las peticiones y streams ya las traen (0.7.0); el delegado de transferencias es aparte |
 | mTLS | certificado de cliente en `URLSession` | lo piden pocos bancos; va con pinning |
-| Ejemplos `Catalog` y `Media` | apps de muestra | `Login` absorbió el catálogo; falta una demo de streams/sockets |
 | Pinning por certificado | además de SPKI | SPKI es la recomendación (sobrevive renovaciones) |
 
 Saldado en 0.6.0: `@Headers`, `@BaseURL`, `@KeyMapping`, DocC con Quick Start, este documento.
 Saldado en 0.7.0: reconexión de sockets (backoff, keep-alive, `events`), métricas de transporte y `MetricsInterceptor`.
+Saldado en 0.8.0: los ejemplos `Catalog` y `Media` se funden en `Examples/Guide`, una pestaña por pieza contra APIs reales.
 
 ---
 

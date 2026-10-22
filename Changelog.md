@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - Unreleased
+### Added
+- `Socket.reconnect()`: cierra la conexión actual y deja que la política abra otra (volver de segundo plano,
+  cambio de red). `QueueProgress.init` público y `QueueProgress.empty`.
+- `Examples/Guide` sustituye a `Examples/Login`: una pestaña por pieza contra APIs públicas reales
+  (dummyjson, Wikimedia SSE, picsum, echo.websocket.org) o un servidor falso; entornos `live` y `mock`
+  con cinco servicios; `MetricsLog` con `MetricsInterceptor`; 17 pruebas sin red y 4 opt-in contra las
+  APIs reales (`JADE_LIVE=1`).
+
 ## [0.7.0] - 2026-10-22
 ### Added
 - Métricas de transporte: `TransportMetrics` en `Response.metrics` (de `URLSessionTaskMetrics`; sintéticas

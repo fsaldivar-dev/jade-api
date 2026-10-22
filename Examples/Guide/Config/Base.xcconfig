@@ -1,0 +1,8 @@
+// Configuración común a todas las Build Configurations.
+// Los "//" se leen como comentario en xcconfig: el esquema se escribe partido con $().
+HTTPS = https:/$()/
+HTTP  = http:/$()/
+// Servicios públicos que la guía usa en todos los entornos.
+JADE_WIKI_BASE_URL   = $(HTTPS)stream.wikimedia.org
+JADE_PHOTOS_BASE_URL = $(HTTPS)picsum.photos
+JADE_ECHO_BASE_URL   = $(HTTPS)echo.websocket.org

@@ -1,5 +1,0 @@
-// Configuración común a todas las Build Configurations.
-// Los "//" se leen como comentario en xcconfig: el esquema se escribe partido con $().
-HTTPS = https:/$()/
-HTTP  = http:/$()/
-JADE_AUTH_ISSUER = $(HTTPS)auth.ejemplo.com

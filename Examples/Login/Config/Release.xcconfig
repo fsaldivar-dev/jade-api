@@ -1,6 +1,0 @@
-// Lo único que verá el binario de tienda. Sin sandbox, sin localhost, sin overrides.
-#include "Base.xcconfig"
-JADE_STAGE = prod
-JADE_AUTH_BASE_URL    = $(HTTPS)auth.ejemplo.com
-JADE_CATALOG_BASE_URL = $(HTTPS)catalog.ejemplo.com/v2
-SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited)
