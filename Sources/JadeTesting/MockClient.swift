@@ -158,7 +158,9 @@ public final class MockClient: HTTPClient, @unchecked Sendable {
         }()
         guard let handler else { throw MockError.unmocked(request) }
         let mock = try handler(request)
-        return Response(status: mock.status, headers: mock.headers, body: mock.body, request: request)
+        // Métricas sintéticas: la latencia configurada y los bytes reales, para probar a quien las consume.
+        let metrics = TransportMetrics(duration: latency, bytesSent: request.body?.count ?? 0, bytesReceived: mock.body.count, protocolName: "mock")
+        return Response(status: mock.status, headers: mock.headers, body: mock.body, request: request, metrics: metrics)
     }
 }
 

@@ -8,12 +8,15 @@ public struct StreamingResponse: Sendable {
     public let request: Request
     /// Trozos de body en el orden de llegada. Termina cuando el servidor cierra o la tarea se cancela.
     public let chunks: AsyncThrowingStream<Data, any Error>
+    /// Métricas del transporte, disponibles cuando el stream termina: `await streaming.metrics.value`.
+    public let metrics: MetricsFuture
 
-    public init(status: Int, headers: [String: String] = [:], request: Request, chunks: AsyncThrowingStream<Data, any Error>) {
+    public init(status: Int, headers: [String: String] = [:], request: Request, chunks: AsyncThrowingStream<Data, any Error>, metrics: MetricsFuture = MetricsFuture(nil)) {
         self.status = status
         self.headers = headers
         self.request = request
         self.chunks = chunks
+        self.metrics = metrics
     }
 
     public var isSuccess: Bool { (200..<300).contains(status) }
@@ -28,7 +31,7 @@ public struct StreamingResponse: Sendable {
                   chunks: AsyncThrowingStream { continuation in
                       if !response.body.isEmpty { continuation.yield(response.body) }
                       continuation.finish()
-                  })
+                  }, metrics: MetricsFuture(response.metrics))
     }
 }
 

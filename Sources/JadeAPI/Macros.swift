@@ -146,6 +146,15 @@ public macro Idempotent() = #externalMacro(module: "JadeAPIMacros", type: "Repos
 /// ```
 ///
 /// Los parámetros de ruta se rellenan igual que en `@Api`; el resto va a la query. Los interceptores
-/// de petición (headers, auth) se aplican al handshake.
+/// de petición (headers, auth) se aplican al handshake, también en cada reconexión.
+///
+/// Resiliencia (ver ``SocketPolicy``): `reconnect:` es la espera entre intentos tras una caída
+/// (`.constant`, `.exponential`); sin ella, `messages` termina con error. `maxReconnects:` limita los
+/// intentos seguidos; `keepAlive:` manda un ping periódico y trata un ping fallido como caída.
+///
+/// ```swift
+/// @Socket("/ws/chat/:room", reconnect: .exponential(.seconds(1), max: .seconds(30)), keepAlive: .seconds(30))
+/// func chat(room: String) async throws -> Socket<Outgoing, Incoming>
+/// ```
 @attached(peer)
-public macro Socket(_ path: String) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+public macro Socket(_ path: String, reconnect: RetryPolicy.Backoff? = nil, maxReconnects: Int? = nil, keepAlive: Duration? = nil) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")

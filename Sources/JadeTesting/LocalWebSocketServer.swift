@@ -58,8 +58,10 @@ public final class LocalWebSocketServer: @unchecked Sendable {
         }
     }
 
+    private var accepted = 0
+
     private func accept(_ connection: NWConnection) {
-        lock.lock(); connections.append(connection); lock.unlock()
+        lock.lock(); connections.append(connection); accepted += 1; lock.unlock()
         connection.stateUpdateHandler = { [weak self] state in
             if case .failed = state { self?.remove(connection) }
             if case .cancelled = state { self?.remove(connection) }
@@ -100,6 +102,15 @@ public final class LocalWebSocketServer: @unchecked Sendable {
 
     private func remove(_ connection: NWConnection) {
         lock.lock(); connections.removeAll { $0 === connection }; lock.unlock()
+    }
+
+    /// Conexiones aceptadas desde el arranque (las caídas cuentan): sirve para afirmar que hubo reconexión.
+    public var acceptedConnections: Int { lock.lock(); defer { lock.unlock() }; return accepted }
+
+    /// Corta las conexiones abiertas sin parar el servidor: el cliente ve una caída y puede reconectar al mismo puerto.
+    public func dropConnections() {
+        lock.lock(); let open = connections; connections = []; lock.unlock()
+        open.forEach { $0.cancel() }
     }
 
     public func stop() {

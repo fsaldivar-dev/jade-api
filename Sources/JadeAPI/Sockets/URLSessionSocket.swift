@@ -75,7 +75,17 @@ final class URLSessionSocketConnection: NSObject, SocketConnection, URLSessionWe
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
         lock.lock()
         guard !opened else { lock.unlock(); return }
-        let failure = error.map { HTTPError.transport($0) } ?? HTTPError.transport(URLError(.badServerResponse))
+        let failure: HTTPError
+        if let http = task.response as? HTTPURLResponse, !(200..<300).contains(http.statusCode), http.statusCode != 101 {
+            // El servidor contestó el handshake con un status (401, 403, 503…): se distingue de una caída de red.
+            var headers: [String: String] = [:]
+            for (name, value) in http.allHeaderFields { if let name = name as? String, let value = value as? String { headers[name] = value } }
+            let original = task.originalRequest
+            let request = Request(method: .get, url: original?.url ?? http.url ?? URL(string: "ws://invalid")!, path: original?.url?.path ?? "", headers: original?.allHTTPHeaderFields ?? [:])
+            failure = .status(http.statusCode, Response(status: http.statusCode, headers: headers, request: request))
+        } else {
+            failure = error.map { HTTPError.transport($0) } ?? HTTPError.transport(URLError(.badServerResponse))
+        }
         openError = failure
         let waiters = openWaiters; openWaiters = []
         lock.unlock()

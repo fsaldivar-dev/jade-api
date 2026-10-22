@@ -257,6 +257,17 @@ let client = AppClient(stage: .prod, interceptors: [
 
 El primero es el más externo. `RequestAdapter` (solo antes) y `ResponseInterceptor` (solo después) son atajos de una función. Por repositorio, `@Interceptors(SignRequest())` sobre el `protocol` los añade por dentro de los del cliente.
 
+### Métricas
+
+`Response.metrics` trae lo que midió el transporte (`TransportMetrics`: duración, DNS, conexión, TLS, primer byte, bytes, protocolo, conexión reutilizada) y `Response.attempts` cuántos intentos hizo `@Retries`. `URLSessionClient` las saca de `URLSessionTaskMetrics`; `MockClient` las sintetiza a partir de su latencia. Para mandarlas a telemetría, un interceptor en la capa más externa:
+
+```swift
+environment.interceptors = [MetricsInterceptor { report in telemetry.record(report) }]
+// report: petición redactada, status o error, elapsed (reintentos incluidos), attempts, transport
+```
+
+`RequestLogger` muestra duración, primer byte y protocolo en su línea. Para streams, `await streaming.metrics.value` resuelve cuando el stream termina.
+
 ## Transformadores
 
 Tocan los datos, con tipos verificados por el compilador:
@@ -376,7 +387,22 @@ for try await message in chat.messages { … }         // termina al cerrar; lan
 chat.close()
 ```
 
-`String` viaja como texto, `Data` como binario y cualquier `Codable` como JSON. `https://` se convierte en `wss://` (y `http://` en `ws://`, solo en Debug). No reconecta solo: si la conexión cae, `messages` termina con error y tú decides. Para pruebas, `JadeTesting` trae `LocalWebSocketServer`, un servidor eco real sobre Network.framework, que es con lo que se prueba la librería.
+`String` viaja como texto, `Data` como binario y cualquier `Codable` como JSON. `https://` se convierte en `wss://` (y `http://` en `ws://`, solo en Debug). Para pruebas, `JadeTesting` trae `LocalWebSocketServer`, un servidor eco real sobre Network.framework, que es con lo que se prueba la librería.
+
+### Reconexión
+
+Sin política, si la conexión cae `messages` termina con error y tú decides. Con política, declarada en el endpoint como cualquier otra opción:
+
+```swift
+@Socket("/ws/chat/:room", reconnect: .exponential(.seconds(1), max: .seconds(30)), keepAlive: .seconds(30))
+func chat(room: String) async throws -> Socket<Outgoing, Incoming>
+
+for await event in chat.events {
+    if case .connected(let attempt) = event, attempt > 0 { try await chat.send(.subscribe(room)) }   // re-suscribirse
+}
+```
+
+Las caídas no terminan `messages`: `events` avisa (`.disconnected`, `.reconnecting(attempt:after:)`, `.connected(attempt:)`, `.closed(code:)`), cada intento vuelve a pasar el handshake por los interceptores (token fresco) y `send` mientras tanto lanza `SocketDisconnected`: no hay cola oculta. `keepAlive:` manda un ping periódico y trata un ping sin respuesta como caída. `maxReconnects:` pone límite. No reconecta ante cierre normal (1000, 1001), `close()`, errores de protocolo o de política (1002, 1003, 1007–1010, 4xxx) ni handshakes rechazados con 4xx salvo 408 y 429.
 
 ## Nivel 3: seguridad bancaria
 

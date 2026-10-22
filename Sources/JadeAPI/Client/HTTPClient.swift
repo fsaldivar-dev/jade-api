@@ -26,8 +26,9 @@ public struct URLSessionClient: HTTPClient {
     public func send(_ request: Request) async throws -> Response {
         let data: Data
         let response: URLResponse
+        let collector = MetricsCollector()
         do {
-            (data, response) = try await session.data(for: request.urlRequest)
+            (data, response) = try await session.data(for: request.urlRequest, delegate: collector)
         } catch is CancellationError {
             throw HTTPError.cancelled
         } catch let error as URLError where error.code == .cancelled {
@@ -42,15 +43,16 @@ public struct URLSessionClient: HTTPClient {
         for (name, value) in http.allHeaderFields {
             if let name = name as? String, let value = value as? String { headers[name] = value }
         }
-        return Response(status: http.statusCode, headers: headers, body: data, request: request)
+        return Response(status: http.statusCode, headers: headers, body: data, request: request, metrics: collector.metrics)
     }
 
     /// `URLSession.bytes(for:)`: los trozos se entregan conforme llegan (hasta 16 KB por chunk).
     public func stream(_ request: Request) async throws -> StreamingResponse {
         let bytes: URLSession.AsyncBytes
         let response: URLResponse
+        let collector = MetricsCollector()
         do {
-            (bytes, response) = try await session.bytes(for: request.urlRequest)
+            (bytes, response) = try await session.bytes(for: request.urlRequest, delegate: collector)
         } catch is CancellationError {
             throw HTTPError.cancelled
         } catch let error as URLError where error.code == .cancelled {
@@ -77,9 +79,27 @@ public struct URLSessionClient: HTTPClient {
                 } catch {
                     continuation.finish(throwing: HTTPError.transport(error))
                 }
+                collector.future.resolve(collector.metrics)
             }
             continuation.onTermination = { _ in task.cancel() }
         }
-        return StreamingResponse(status: http.statusCode, headers: headers, request: request, chunks: chunks)
+        return StreamingResponse(status: http.statusCode, headers: headers, request: request, chunks: chunks, metrics: collector.future)
+    }
+}
+
+/// Delegado por tarea que solo escucha `didFinishCollecting`. Los demás mensajes siguen llegando al
+/// delegado de la sesión (pinning, redirecciones), porque un delegado de tarea solo gana en lo que implementa.
+final class MetricsCollector: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var collected: TransportMetrics?
+    let future = MetricsFuture()
+
+    var metrics: TransportMetrics? {
+        lock.lock(); defer { lock.unlock() }
+        return collected
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+        lock.lock(); collected = TransportMetrics(metrics); lock.unlock()
     }
 }

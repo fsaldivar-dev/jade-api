@@ -33,7 +33,8 @@ final class OptionsEngine: Sendable {
         var lastError: (any Error)?
         for number in 1...policy.attempts {
             do {
-                let response = try await attempt()
+                var response = try await attempt()
+                response.attempts = number
                 guard number < policy.attempts, RetryPolicy.shouldRetry(status: response.status) else { return response }
                 try await sleep(policy: policy, attempt: number, retryAfter: response.header("Retry-After"))
                 continue

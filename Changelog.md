@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - Unreleased
+### Added
+- Métricas de transporte: `TransportMetrics` en `Response.metrics` (de `URLSessionTaskMetrics`; sintéticas
+  en `MockClient`), `Response.attempts`, `StreamingResponse.metrics` (`MetricsFuture`, resuelve al terminar),
+  `MetricsInterceptor` con `MetricsReport` redactado, y duración/primer byte/protocolo en `RequestLogger`.
+- Reconexión de sockets: `@Socket(path, reconnect:, maxReconnects:, keepAlive:)` → `SocketPolicy` en
+  `RequestOptions.socket`; `Socket.events` (`SocketEvent`), `isConnected`, `SocketDisconnected` al enviar
+  sin conexión; cada reconexión repite el handshake por los adaptadores; `Socket.shouldReconnect(after:)`
+  documenta qué códigos reconectan. Un handshake rechazado con status llega como `HTTPError.status`.
+- `LocalWebSocketServer.dropConnections()` y `acceptedConnections` para probar caídas.
+- `RetryPolicy.Backoff.delay(forAttempt:)` público.
+
 ## [0.6.0] - 2026-10-22
 ### Added
 - `@Headers([:])` sobre el protocolo (todos los endpoints) o sobre un requisito; prioridad endpoint →

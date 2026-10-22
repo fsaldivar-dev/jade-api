@@ -199,7 +199,7 @@ public struct RepositoryMacro: PeerMacro {
             let fields = parameters.filter { $0.kind == .field }.map { "(\"\($0.label)\", \($0.valueExpression))" }
             body = fields.isEmpty ? "nil" : ".fields([\(fields.joined(separator: ", "))])"
         }
-        let endpointOptions = optionsExpression(from: function.attributes, apiTimeout: arguments.timeout)
+        let endpointOptions = optionsExpression(from: function.attributes, apiTimeout: arguments.timeout, socketPolicy: socket.flatMap(Self.socketPolicyExpression))
         let optionsArgument: String
         switch (endpointOptions, protocolOptions) {
         case (nil, nil): optionsArgument = ""
@@ -270,9 +270,10 @@ public struct RepositoryMacro: PeerMacro {
 
     /// `@Retries(3, backoff: .constant(.seconds(1))) @CacheFor(.seconds(60)) @SingleFlight` + `timeout:` de @Api
     /// → `JadeAPI.RequestOptions(timeout: …, cache: …, retry: JadeAPI.RetryPolicy(attempts: 3, backoff: …), singleFlight: true)`.
-    static func optionsExpression(from attributes: AttributeListSyntax, apiTimeout: String?) -> String? {
+    static func optionsExpression(from attributes: AttributeListSyntax, apiTimeout: String?, socketPolicy: String? = nil) -> String? {
         var fields: [String] = []
         if let timeout = apiTimeout { fields.append("timeout: \(timeout)") }
+        if let socketPolicy { fields.append("socket: \(socketPolicy)") }
         if let cache = Attributes.find("CacheFor", in: attributes), case .argumentList(let list)? = cache.arguments, let first = list.first {
             fields.append("cache: \(first.expression.trimmedDescription)")
         }
@@ -284,6 +285,17 @@ public struct RepositoryMacro: PeerMacro {
         }
         if Attributes.find("SingleFlight", in: attributes) != nil { fields.append("singleFlight: true") }
         return fields.isEmpty ? nil : "JadeAPI.RequestOptions(\(fields.joined(separator: ", ")))"
+    }
+
+    /// `@Socket("/ws", reconnect: .constant(.seconds(1)), keepAlive: .seconds(30))`
+    /// → `JadeAPI.SocketPolicy(reconnect: .constant(.seconds(1)), keepAlive: .seconds(30))`; `nil` sin argumentos de política.
+    static func socketPolicyExpression(of attribute: AttributeSyntax) -> String? {
+        guard case .argumentList(let list)? = attribute.arguments else { return nil }
+        let fields = list.compactMap { argument -> String? in
+            guard let label = argument.label?.text, ["reconnect", "maxReconnects", "keepAlive"].contains(label) else { return nil }
+            return "\(label): \(argument.expression.trimmedDescription)"
+        }
+        return fields.isEmpty ? nil : "JadeAPI.SocketPolicy(\(fields.joined(separator: ", ")))"
     }
 
     /// `@Unwrap("data")` → `"data"`. Rechaza interpolaciones.

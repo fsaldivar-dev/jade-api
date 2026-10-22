@@ -52,12 +52,18 @@ public struct Response: Sendable {
     public let headers: [String: String]
     public let body: Data
     public let request: Request
+    /// Lo que midió el transporte en el intento que respondió; `nil` si el transporte no mide.
+    public var metrics: TransportMetrics?
+    /// Intentos que hizo `@Retries` hasta esta respuesta (1 = a la primera).
+    public var attempts: Int
 
-    public init(status: Int, headers: [String: String] = [:], body: Data = Data(), request: Request) {
+    public init(status: Int, headers: [String: String] = [:], body: Data = Data(), request: Request, metrics: TransportMetrics? = nil, attempts: Int = 1) {
         self.status = status
         self.headers = headers
         self.body = body
         self.request = request
+        self.metrics = metrics
+        self.attempts = attempts
     }
 
     public var isSuccess: Bool { (200..<300).contains(status) }

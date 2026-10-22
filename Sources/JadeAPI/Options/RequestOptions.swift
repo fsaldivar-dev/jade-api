@@ -25,12 +25,17 @@ public struct RetryPolicy: Sendable, Hashable {
         status >= 500 || status == 408 || status == 429
     }
 
-    func delay(forAttempt attempt: Int) -> Duration {
-        switch backoff {
+    func delay(forAttempt attempt: Int) -> Duration { backoff.delay(forAttempt: attempt) }
+}
+
+extension RetryPolicy.Backoff {
+    /// Espera antes del intento `attempt` (1 = primer reintento).
+    public func delay(forAttempt attempt: Int) -> Duration {
+        switch self {
         case .none: .zero
         case .constant(let duration): duration
         case .exponential(let initial, let factor, let maximum):
-            min(initial * pow(factor, Double(attempt - 1)), maximum)
+            min(initial * pow(factor, Double(max(attempt, 1) - 1)), maximum)
         }
     }
 }
@@ -45,12 +50,15 @@ public struct RequestOptions: Sendable, Hashable {
     public var retry: RetryPolicy?
     /// Peticiones idénticas en vuelo comparten una sola respuesta.
     public var singleFlight: Bool
+    /// Reconexión y keep-alive de un `@Socket`.
+    public var socket: SocketPolicy?
 
-    public init(timeout: Duration? = nil, cache: Duration? = nil, retry: RetryPolicy? = nil, singleFlight: Bool = false) {
+    public init(timeout: Duration? = nil, cache: Duration? = nil, retry: RetryPolicy? = nil, singleFlight: Bool = false, socket: SocketPolicy? = nil) {
         self.timeout = timeout
         self.cache = cache
         self.retry = retry
         self.singleFlight = singleFlight
+        self.socket = socket
     }
 
     public static let none = RequestOptions()
@@ -58,7 +66,8 @@ public struct RequestOptions: Sendable, Hashable {
     /// Las del endpoint ganan sobre las del repositorio, campo a campo.
     public func merging(over base: RequestOptions) -> RequestOptions {
         RequestOptions(timeout: timeout ?? base.timeout, cache: cache ?? base.cache,
-                       retry: retry ?? base.retry, singleFlight: singleFlight || base.singleFlight)
+                       retry: retry ?? base.retry, singleFlight: singleFlight || base.singleFlight,
+                       socket: socket ?? base.socket)
     }
 }
 

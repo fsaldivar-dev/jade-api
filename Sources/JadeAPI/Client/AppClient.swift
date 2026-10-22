@@ -199,18 +199,29 @@ public struct AppClient: Sendable {
         _ endpoint: Endpoint, isolation: isolated (any Actor)? = #isolation
     ) async throws -> Socket<Outgoing, Incoming> {
         guard let sockets = transport as? any SocketClient else { throw HTTPError.unsupported("websocket") }
-        var request = try await adaptedRequest(endpoint, isolation: isolation)
-        if var components = URLComponents(url: request.url, resolvingAgainstBaseURL: false) {
-            switch components.scheme?.lowercased() {
-            case "https": components.scheme = "wss"
-            case "http": components.scheme = "ws"
-            default: break
+        let base = try makeRequest(endpoint)
+        let interceptors = self.interceptors
+        // Cada (re)conexión vuelve a pasar el handshake por los adaptadores: token fresco, firma nueva.
+        let handshake: @Sendable () async throws -> Request = {
+            var request = base
+            for interceptor in interceptors {
+                if let adapter = interceptor as? any RequestAdapter { request = try await adapter.adapt(request) }
             }
-            if let url = components.url { request.url = url }
+            if var components = URLComponents(url: request.url, resolvingAgainstBaseURL: false) {
+                switch components.scheme?.lowercased() {
+                case "https": components.scheme = "wss"
+                case "http": components.scheme = "ws"
+                default: break
+                }
+                if let url = components.url { request.url = url }
+            }
+            request.headers["Accept"] = nil
+            return request
         }
-        request.headers["Accept"] = nil
+        let request = try await handshake()
         let connection = try await sockets.connect(request)
-        return Socket(request: request, connection: connection,
+        return Socket(request: request, connection: connection, policy: request.options.socket ?? .none,
+                      connector: { try await sockets.connect(try await handshake()) },
                       encode: SocketCoding.encoder(for: Outgoing.self, json: encoder),
                       decode: SocketCoding.decoder(for: Incoming.self, json: decoder))
     }

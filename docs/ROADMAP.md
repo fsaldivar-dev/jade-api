@@ -9,7 +9,7 @@ que una iteración prometió y no se construyó está en [Deuda](#deuda) con el 
 los ojos abiertos en vez de darlo por hecho. Lo que no está en la iteración en curso no se empieza
 aunque sea fácil: la superficie de la librería es su mayor costo cognitivo.
 
-Última revisión contra el código: 2026-10-22 (0.5.0 publicada, 0.6.0 en curso).
+Última revisión contra el código: 2026-10-22 (0.6.0 publicada, 0.7.0 en curso).
 
 ---
 
@@ -69,9 +69,12 @@ advertencia por pilas invertidas, ejemplo `Examples/Catalog` (el catálogo vive 
 - `DownloadQueue(maxConcurrent:)` con progreso agregado y `settled`.
 - `@Socket("/ws/:room")` → `Socket<Out, In>` sobre `URLSessionWebSocketTask`; `LocalWebSocketServer` en `JadeTesting`.
 
-**No se hizo:** reconexión de sockets con backoff y ping, persistencia de la cola de descargas entre
-lanzamientos, background sessions, métricas de transporte (`URLSessionTaskMetrics`), diagnóstico
-`kind` ↔ retorno más allá del prefijo del tipo, ejemplo `Examples/Media`, servidor HTTP local para descargas.
+- 0.7.0: reconexión con backoff, `maxReconnects` y keep-alive (`SocketPolicy`, `Socket.events`), y métricas
+  de transporte (`TransportMetrics`, `MetricsInterceptor`) para peticiones y streams.
+
+**No se hizo:** persistencia de la cola de descargas entre lanzamientos, background sessions, métricas en
+transferencias y en el handshake del socket, diagnóstico `kind` ↔ retorno más allá del prefijo del tipo,
+ejemplo `Examples/Media`, servidor HTTP local para descargas.
 
 ## Nivel 3 · Seguridad (0.4, 0.5) — hecho
 
@@ -92,18 +95,18 @@ sigue fuera; si se decide hacerla, se mueve a la iteración en curso.
 
 | Pieza | Falta | Por qué sigue fuera |
 | --- | --- | --- |
-| `RetryTransport` / `MetricsInterceptor` | interceptores incluidos | los reintentos ya viven en `@Retries`; las métricas dependen de `URLSessionTaskMetrics` (nivel 3) |
+| `RetryTransport` | interceptor incluido | los reintentos ya viven en `@Retries` |
 | `@Authenticated` | guardián que lanza sin token | `AuthInterceptor` + `TokenProvider` cubren el caso; falta decidir si vale un marcador |
 | Progreso agregado de grupos | `AsyncStream<Progress>` en `group` | solo lo pidió `DownloadQueue`, que ya lo tiene |
 | `Result<T, HTTPError>` como retorno | adaptador de retorno | nadie lo ha necesitado; `throws` basta |
 | `@Envelope(Type.self)` | envelope tipado | `@Unwrap("data")` resuelve el 90 % |
-| Reconexión de sockets | backoff, ping, re-suscripción | necesita una política de resiliencia compartida con descargas |
-| Métricas de transporte | `Response.metrics` | pendiente de diseño con el logger |
+| Métricas en transferencias y sockets | `Download`/`Upload`/handshake | las peticiones y streams ya las traen (0.7.0); el delegado de transferencias es aparte |
 | mTLS | certificado de cliente en `URLSession` | lo piden pocos bancos; va con pinning |
 | Ejemplos `Catalog` y `Media` | apps de muestra | `Login` absorbió el catálogo; falta una demo de streams/sockets |
 | Pinning por certificado | además de SPKI | SPKI es la recomendación (sobrevive renovaciones) |
 
 Saldado en 0.6.0: `@Headers`, `@BaseURL`, `@KeyMapping`, DocC con Quick Start, este documento.
+Saldado en 0.7.0: reconexión de sockets (backoff, keep-alive, `events`), métricas de transporte y `MetricsInterceptor`.
 
 ---
 

@@ -60,10 +60,71 @@ public struct RequestLogger: Interceptor {
         let start = ContinuousClock.now
         do {
             let response = try await next(request)
-            sink("← \(response.status) \(request.method.rawHTTP) \(request.path)  \(response.body.count) bytes  \(ContinuousClock.now - start)")
+            var line = "← \(response.status) \(request.method.rawHTTP) \(request.path)  \(response.body.count) bytes  \((ContinuousClock.now - start).millisecondsText)"
+            if let metrics = response.metrics {
+                if let ttfb = metrics.timeToFirstByte { line += "  ttfb \(ttfb.millisecondsText)" }
+                if let name = metrics.protocolName { line += "  \(name)" }
+                if metrics.reusedConnection { line += "  reused" }
+            }
+            if response.attempts > 1 { line += "  intento \(response.attempts)" }
+            sink(line)
             return response
         } catch {
             sink("✗ \(request.method.rawHTTP) \(request.path)  \(error)")
+            throw error
+        }
+    }
+}
+
+// MARK: - Métricas
+
+/// Lo que ``MetricsInterceptor`` entrega por petición terminada, con la petición ya redactada.
+public struct MetricsReport: Sendable {
+    /// Petición con credenciales y datos sensibles redactados según la ``SecurityPolicy``.
+    public var request: Request
+    /// Status de la respuesta, o `nil` si no hubo respuesta (error de transporte, timeout, cancelación).
+    public var status: Int?
+    /// Error, si la petición falló antes de responder.
+    public var error: String?
+    /// Tiempo total visto desde este interceptor: incluye reintentos, caché y espera de single-flight.
+    public var elapsed: Duration
+    /// Intentos que hizo `@Retries` (1 = a la primera).
+    public var attempts: Int
+    /// Lo que midió el transporte en el intento que respondió; `nil` si no mide o no hubo respuesta.
+    public var transport: TransportMetrics?
+
+    public var succeeded: Bool { status.map { (200..<300).contains($0) } ?? false }
+}
+
+/// Entrega un ``MetricsReport`` por petición a un `sink`: la forma de conectar Datadog, Firebase
+/// Performance o tu propio panel sin tocar repositorios. Colócalo lo más afuera posible (capa de
+/// entorno o cliente) para que `elapsed` incluya reintentos y refresh de token.
+///
+/// ```swift
+/// environment.interceptors = [MetricsInterceptor { report in telemetry.record(report) }]
+/// ```
+public struct MetricsInterceptor: Interceptor {
+    public let policy: SecurityPolicy
+    public let sink: @Sendable (MetricsReport) -> Void
+
+    public init(policy: SecurityPolicy = .default, sink: @escaping @Sendable (MetricsReport) -> Void) {
+        self.policy = policy
+        self.sink = sink
+    }
+
+    public func intercept(_ request: Request, next: Next) async throws -> Response {
+        let start = ContinuousClock.now
+        var shown = request
+        for (name, value) in shown.headers { shown.headers[name] = policy.redacted(name, value) }
+        if let url = URL(string: policy.redactedQuery(of: request.url)) { shown.url = url }
+        if let body = policy.redactedBody(request.body) { shown.body = Data(body.utf8) }
+        do {
+            let response = try await next(request)
+            sink(MetricsReport(request: shown, status: response.status, error: nil, elapsed: ContinuousClock.now - start,
+                               attempts: response.attempts, transport: response.metrics))
+            return response
+        } catch {
+            sink(MetricsReport(request: shown, status: nil, error: "\(error)", elapsed: ContinuousClock.now - start, attempts: 1, transport: nil))
             throw error
         }
     }

@@ -303,6 +303,15 @@ protocol ChatRepository: Sendable {
 
     @Socket("/ws/bin")
     func binary() async throws -> Socket<Data, Data>
+
+    @Socket("/ws/echo/:room", reconnect: .constant(.milliseconds(50)), keepAlive: .milliseconds(200))
+    func resilient(room: String) async throws -> Socket<String, String>
+
+    @Socket("/ws/echo/slow", reconnect: .constant(.seconds(2)))
+    func slowReconnect() async throws -> Socket<String, String>
+
+    @Socket("/ws/echo/limited", reconnect: .constant(.milliseconds(30)), maxReconnects: 2)
+    func limited() async throws -> Socket<String, String>
 }
 
 // MARK: - Atributos de repositorio: @BaseURL, @Headers, @KeyMapping

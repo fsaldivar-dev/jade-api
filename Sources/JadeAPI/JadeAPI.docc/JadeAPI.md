@@ -78,6 +78,9 @@ decorador si tocas la llamada, transformador si tocas datos*.
 - ``TokenProvider``
 - ``CommonHeaders``
 - ``RequestLogger``
+- ``MetricsInterceptor``
+- ``MetricsReport``
+- ``TransportMetrics``
 
 ### Transformadores
 
@@ -104,8 +107,10 @@ decorador si tocas la llamada, transformador si tocas datos*.
 - ``DownloadQueue``
 - ``Multipart``
 - ``FileUpload``
-- ``Socket(_:)``
+- ``Socket(_:reconnect:maxReconnects:keepAlive:)``
 - ``Socket``
+- ``SocketPolicy``
+- ``SocketEvent``
 
 ### Seguridad
 

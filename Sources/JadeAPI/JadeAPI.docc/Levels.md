@@ -26,7 +26,8 @@ nivel 1 sigue funcionando igual cuando la app crece.
 ### Nivel 3 · big app
 
 - Streams con `kind:` (`.bytes`, `.lines`, `.ndjson`, `.sse`), descargas y subidas con progreso, ``DownloadQueue``.
-- WebSocket tipado con ``Socket(_:)``.
+- WebSocket tipado con ``Socket(_:reconnect:maxReconnects:keepAlive:)``: reconexión con backoff, keep-alive y `events`.
+- Métricas de transporte en ``TransportMetrics`` y ``MetricsInterceptor`` para telemetría.
 - Seguridad: ``KeychainTokenProvider``, pinning (``PublicKeyPin``, ``PinningPolicy``), DPoP
   (``DPoPInterceptor``), firmas HTTP (``SignedRequestInterceptor``), App Attest (``AppAttestInterceptor``)
   y login OIDC (``AuthorizationFlow``, ``OpenIDDiscovery``). El modelo de amenaza está en `SECURITY.md`.

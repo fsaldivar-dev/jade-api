@@ -15,6 +15,7 @@ let macros: [String: Macro.Type] = [
     "Headers": RepositoryAttributeMacro.self,
     "BaseURL": RepositoryAttributeMacro.self,
     "KeyMapping": RepositoryAttributeMacro.self,
+    "Socket": RepositoryAttributeMacro.self,
 ]
 
 final class RepositoryMacroTests: XCTestCase {
@@ -294,6 +295,59 @@ final class RepositoryMacroTests: XCTestCase {
             diagnostics: [
                 DiagnosticSpec(message: "@BaseURL applies to the whole repository: move it onto the protocol", line: 3, column: 5),
             ],
+            macros: macros
+        )
+    }
+
+    func testSocketPolicyBecomesOptions() {
+        assertMacroExpansion(
+            """
+            @Repository
+            protocol ChatRepository: Sendable {
+                @Socket("/ws/chat/:room", reconnect: .constant(.seconds(1)), keepAlive: .seconds(30))
+                func chat(room: String) async throws -> Socket<String, String>
+            }
+            """,
+            expandedSource: """
+            protocol ChatRepository: Sendable {
+                func chat(room: String) async throws -> Socket<String, String>
+            }
+
+            @AnnotationSwift.Decorable
+            struct ChatRepositoryClient: ChatRepository, Sendable {
+                /// Servicio del ``Environment`` al que pertenece este repositorio.
+                static let service: String = JadeAPI.Environment.defaultService
+
+                let client: JadeAPI.AppClient
+
+                init(client: JadeAPI.AppClient) {
+                    self.client = client
+                }
+
+                /// Cliente del servicio `default` resuelto por el entorno.
+                init(environment: JadeAPI.Environment) throws {
+                    self.init(client: try environment.client(for: Self.service))
+                }
+
+                /// Fábrica: `ChatRepositoryClient.live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> ChatRepositoryClient {
+                    try ChatRepositoryClient(environment: environment)
+                }
+
+                func chat(room: String) async throws -> Socket<String, String> {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "chat(room:)", method: .get, path: "/ws/chat/:room", pathParameters: ["room": JadeAPI.ParameterValue.text(room) ?? ""], query: [], headers: __headers, body: nil, options: JadeAPI.RequestOptions(socket: JadeAPI.SocketPolicy(reconnect: .constant(.seconds(1)), keepAlive: .seconds(30))))
+                    return try await client.openSocket(__endpoint)
+                }
+            }
+
+            extension ChatRepository where Self == ChatRepositoryClient {
+                /// Implementación real resuelta por el entorno: `let repo: ChatRepository = try .live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> Self {
+                    try ChatRepositoryClient(environment: environment)
+                }
+            }
+            """,
             macros: macros
         )
     }
