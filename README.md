@@ -387,8 +387,26 @@ secured.interceptors = [
 | `SignedRequestInterceptor` | RFC 9421, RFC 9530 | Firma método, URI, `Content-Digest`, `created`, `nonce` y los headers que elijas |
 | `AppAttestInterceptor` | App Attest | Atesta la clave una vez con el challenge del servidor y asierta cada petición |
 | `P256SigningKey` | CryptoKit | Clave P-256 en Secure Enclave cuando existe; persistida vía `KeychainStore` |
+| `AuthorizationFlow` | OIDC Discovery, RFC 8252, PKCE (7636), PAR (9126), FAPI 2.0 | Login en el navegador del sistema con tokens atados por DPoP |
 
-Lo que no está aquí porque no es de la capa de red: anti-tampering, ofuscación, detección de jailbreak y el flujo de login (PKCE + PAR en el navegador del sistema). Y lo que decide la seguridad de verdad vive en tu servidor: verificar cada prueba, cada firma y cada `Idempotency-Key`.
+### Login al estilo FAPI 2.0
+
+`AuthorizationFlow` hace el login de app nativa completo: discovery del issuer (`/.well-known/openid-configuration`, con el `issuer` verificado y solo endpoints `https`), **PAR** si el servidor lo ofrece o lo exige (el navegador solo ve `request_uri`), **PKCE S256**, navegador del sistema con `ASWebAuthenticationSession` (nunca un WebView), intercambio del código con **prueba DPoP** para que los tokens nazcan atados al dispositivo, y comprobación de `iss`, `aud`, `exp` y `nonce` del `id_token`.
+
+```swift
+let flow = AuthorizationFlow(
+    issuer: URL(string: "https://auth.banco.mx")!, clientID: "app-ios",
+    redirectURI: URL(string: "mx.banco.app://callback")!, scopes: ["openid", "accounts"],
+    client: try environment.client(for: "auth"), key: deviceKey, presenter: WebAuthenticationPresenter())
+
+let tokens = try await flow.signIn()
+let provider = KeychainTokenProvider(store: keychain) { try await flow.refresh($0) }
+try await provider.store(tokens)
+```
+
+El cliente es público: no hay `client_secret` en la app (RFC 8252). En pruebas, un `AuthorizationPresenter` falso devuelve la URL de redirección y todo el flujo corre contra `MockClient`.
+
+Lo que no está aquí porque no es de la capa de red: anti-tampering, ofuscación y detección de jailbreak. Y lo que decide la seguridad de verdad vive en tu servidor: verificar cada prueba, cada firma y cada `Idempotency-Key`.
 
 ## Defaults seguros (nivel 1)
 

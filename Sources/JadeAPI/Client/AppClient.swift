@@ -61,13 +61,19 @@ public struct AppClient: Sendable {
     /// Convierte un ``Endpoint`` en una ``Request`` absoluta con el body codificado.
     public func makeRequest(_ endpoint: Endpoint) throws -> Request {
         try security.validate(baseURL)
-        let path = try endpoint.resolvedPath()
+        var path = try endpoint.resolvedPath()
         guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             throw HTTPError.invalidURL(baseURL.absoluteString)
         }
         // `resolvedPath()` ya viene percent-encoded: se asigna como tal para no codificar dos veces.
         let basePath = components.percentEncodedPath.hasSuffix("/") ? String(components.percentEncodedPath.dropLast()) : components.percentEncodedPath
-        components.percentEncodedPath = basePath + (path.hasPrefix("/") ? path : "/" + path)
+        if path.isEmpty {
+            // Endpoint sin ruta sobre una base completa (token endpoint, PAR): la ruta visible es la de la base.
+            components.percentEncodedPath = basePath.isEmpty ? "/" : basePath
+            path = components.path.isEmpty ? "/" : components.path
+        } else {
+            components.percentEncodedPath = basePath + (path.hasPrefix("/") ? path : "/" + path)
+        }
         let items = endpoint.query.compactMap { name, value in value.map { URLQueryItem(name: name, value: $0) } }
         if !items.isEmpty { components.queryItems = (components.queryItems ?? []) + items }
         guard let url = components.url else { throw HTTPError.invalidURL(components.description) }
@@ -77,6 +83,9 @@ public struct AppClient: Sendable {
         if let content = endpoint.body {
             do {
                 switch content {
+                case .value(let form as FormBody):
+                    body = Data(form.encoded.utf8)
+                    headers["Content-Type"] = "application/x-www-form-urlencoded"
                 case .value(let value): body = try encoder.encode(AnyEncodable(value))
                 case .fields(let fields): body = try encoder.encode(FieldsBody(fields))
                 }

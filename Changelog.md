@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - Unreleased
+### Added
+- Login OIDC al estilo FAPI 2.0: `OpenIDDiscovery` (issuer verificado, endpoints https, PKCE S256
+  obligatorio), `PKCE`, `AuthorizationFlow` con PAR cuando el servidor lo ofrece, navegador del sistema
+  (`WebAuthenticationPresenter` sobre `ASWebAuthenticationSession`, `AuthorizationPresenter` para dobles),
+  intercambio del código con prueba DPoP, comprobación de claims del `id_token`, `refresh(_:)`.
+- `FormBody`: bodies `application/x-www-form-urlencoded`.
+
+### Fixed
+- Tests con reloj robustos en runners lentos (la CI estaba en rojo desde la iteración 2 por un límite
+  de 450 ms en el test de timeout).
+
 ## [0.4.0] - 2026-10-21
 Nivel 3: seguridad bancaria.
 

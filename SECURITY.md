@@ -33,7 +33,7 @@ ni para abusar del API.
 | **STORAGE-1** almacenamiento seguro | `SecItemKeychainStore` (`ThisDeviceOnly`, `biometryCurrentSet`), claves DPoP en Secure Enclave | Qué datos guardar y cuándo borrarlos |
 | **STORAGE-2** sin fugas | Logger mudo en release, redacción | Capturas de pantalla, portapapeles, caché de teclado |
 | **CRYPTO-1/2** | ES256 con CryptoKit, SHA-256, claves en hardware; sin primitivas propias | No reimplementar criptografía |
-| **AUTH-1/2/3** | `AuthInterceptor` con refresh único, `KeychainTokenProvider` con caducidad y biometría, DPoP | Flujo de login (PKCE + PAR en navegador del sistema), SCA, caducidad de sesión en UI |
+| **AUTH-1/2/3** | `AuthInterceptor` con refresh único, `KeychainTokenProvider` con caducidad y biometría, DPoP, `AuthorizationFlow` (discovery, PAR, PKCE, navegador del sistema) | SCA, caducidad de sesión en UI, verificación de firma del `id_token` si no confías solo en el canal del token endpoint |
 | **NETWORK-1** canal seguro | Solo TLS; `http` fuera de Debug es error | ATS en Info.plist |
 | **NETWORK-2** identidad del servidor | Pinning con validación del sistema primero | Rotación de pins con cada despliegue de certificado |
 | **PLATFORM-1/2/3** | — | WebViews, IPC, esquemas de URL |
