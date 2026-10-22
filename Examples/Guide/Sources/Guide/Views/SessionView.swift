@@ -6,7 +6,7 @@ struct SessionView: View {
     let session: SessionStore
     let catalog: CatalogStore
     @State private var username = "emilys"
-    @State private var password = "emilyspass"
+    @State private var password = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

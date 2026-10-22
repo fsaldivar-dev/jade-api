@@ -48,7 +48,7 @@ struct EnvironmentTests {
         let app = try TestApp()
         await app.run {
             await app.session.signIn(username: "emilys", password: "mala")
-            await app.session.signIn(username: "emilys", password: "emilyspass")
+            await app.session.signIn(username: "emilys", password: Fixtures.users["emilys"]!)
         }
         let login = try #require(app.metrics.summaries.first { $0.endpoint == "login(username:password:expiresInMins:)" })
         #expect(login.calls == 2)

@@ -58,7 +58,7 @@ let login: LoginRepository = LoginRepositoryClient(client: client)
 
 ```swift
 let form = try await login.getLogin()
-let token = try await login.auth(user: "paco", password: "secreto")
+let token = try await login.auth(user: "<usuario>", password: "<contraseña>")
 ```
 
 ## Declarar
