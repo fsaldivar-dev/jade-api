@@ -35,11 +35,11 @@ public struct SecurityPolicy: Sendable, Equatable {
         sensitiveKeys.contains(key.lowercased())
     }
 
-    /// Comprueba el esquema. Lanza ``HTTPError/insecureURL(_:)`` si es `http` y no está permitido.
+    /// Comprueba el esquema: `https` y `wss` siempre; `http` y `ws` solo si se permite lo inseguro (Debug).
     public func validate(_ url: URL) throws {
         guard let scheme = url.scheme?.lowercased() else { throw HTTPError.invalidURL(url.absoluteString) }
-        if scheme == "https" { return }
-        if scheme == "http", allowsInsecureHTTP { return }
+        if scheme == "https" || scheme == "wss" { return }
+        if (scheme == "http" || scheme == "ws"), allowsInsecureHTTP { return }
         throw HTTPError.insecureURL(url)
     }
 

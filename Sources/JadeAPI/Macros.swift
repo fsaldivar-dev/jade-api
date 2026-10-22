@@ -103,3 +103,15 @@ public macro SingleFlight() = #externalMacro(module: "JadeAPIMacros", type: "Rep
 /// en que `@Retries` acepta reintentar un POST o PATCH.
 @attached(peer)
 public macro Idempotent() = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Declara un WebSocket en lugar de `@Api`. El requisito devuelve `Socket<Saliente, Entrante>`:
+///
+/// ```swift
+/// @Socket("/ws/chat/:room")
+/// func chat(room: String) async throws -> Socket<Outgoing, Incoming>
+/// ```
+///
+/// Los parámetros de ruta se rellenan igual que en `@Api`; el resto va a la query. Los interceptores
+/// de petición (headers, auth) se aplican al handshake.
+@attached(peer)
+public macro Socket(_ path: String) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")

@@ -84,13 +84,14 @@ public struct RepositoryMacro: PeerMacro {
     }
 
     /// Atributos que @Repository consume y no copia al método generado.
-    static let consumedAttributes: Set<String> = ["Api", "Transform", "Unwrap", "ErrorTransform", "Interceptors", "Retries", "CacheFor", "SingleFlight", "Idempotent"]
+    static let consumedAttributes: Set<String> = ["Api", "Socket", "Transform", "Unwrap", "ErrorTransform", "Interceptors", "Retries", "CacheFor", "SingleFlight", "Idempotent"]
 
     // MARK: - Un método por requisito
 
     private static func generate(_ function: FunctionDeclSyntax, access: String, protocolOptions: String?, protocolRetries: AttributeSyntax?, protocolUnwrap: String?, protocolErrorMapper: String?, in context: some MacroExpansionContext) -> String? {
-        guard let api = Attributes.find("Api", in: function.attributes) else {
-            context.error(function.name, id: "missingApi", "every requirement of a @Repository needs @Api")
+        let socket = Attributes.find("Socket", in: function.attributes)
+        guard let api = Attributes.find("Api", in: function.attributes) ?? socket else {
+            context.error(function.name, id: "missingApi", "every requirement of a @Repository needs @Api or @Socket")
             return nil
         }
         let effects = function.signature.effectSpecifiers
@@ -103,8 +104,16 @@ public struct RepositoryMacro: PeerMacro {
             return nil
         }
 
-        // Verbo y ruta: explícitos o inferidos.
-        let arguments = ApiArguments(api, in: context)
+        // Verbo y ruta: explícitos o inferidos. Un @Socket es un GET con kind "socket".
+        var arguments = ApiArguments(api, in: context)
+        if socket != nil {
+            arguments.kind = "socket"
+            arguments.method = "get"
+            if arguments.path == nil {
+                context.error(api, id: "socketPath", "@Socket needs a path, e.g. @Socket(\"/ws/chat/:room\")")
+                return nil
+            }
+        }
         let inferred = Inference.infer(from: function.name.text)
         let method = arguments.method ?? inferred.method ?? "get"
         let path = arguments.path.flatMap { $0.isEmpty ? nil : $0 } ?? inferred.path
@@ -271,6 +280,7 @@ public struct RepositoryMacro: PeerMacro {
         case "sse": "AsyncThrowingStream<ServerEvent"
         case "download": "Download"
         case "upload": "Upload"
+        case "socket": "Socket<"
         default: nil
         }
     }
@@ -284,6 +294,7 @@ public struct RepositoryMacro: PeerMacro {
         case "sse": return "performServerEvents"
         case "download": return "performDownload"
         case "upload": return "performUpload"
+        case "socket": return "openSocket"
         default: break
         }
         guard let type = function.signature.returnClause?.type else { return "performVoid" }

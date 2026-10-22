@@ -183,6 +183,29 @@ public struct AppClient: Sendable {
         return try transfers.upload(request, body: body)
     }
 
+    // MARK: - WebSocket
+
+    /// `@Socket` → conexión tipada. `https://` se convierte en `wss://` y `http://` en `ws://`.
+    public func openSocket<Outgoing: Encodable & Sendable, Incoming: Decodable & Sendable>(
+        _ endpoint: Endpoint, isolation: isolated (any Actor)? = #isolation
+    ) async throws -> Socket<Outgoing, Incoming> {
+        guard let sockets = transport as? any SocketClient else { throw HTTPError.unsupported("websocket") }
+        var request = try await adaptedRequest(endpoint, isolation: isolation)
+        if var components = URLComponents(url: request.url, resolvingAgainstBaseURL: false) {
+            switch components.scheme?.lowercased() {
+            case "https": components.scheme = "wss"
+            case "http": components.scheme = "ws"
+            default: break
+            }
+            if let url = components.url { request.url = url }
+        }
+        request.headers["Accept"] = nil
+        let connection = try await sockets.connect(request)
+        return Socket(request: request, connection: connection,
+                      encode: SocketCoding.encoder(for: Outgoing.self, json: encoder),
+                      decode: SocketCoding.decoder(for: Incoming.self, json: decoder))
+    }
+
     // MARK: - Ejecución (una variante por familia de retorno; la macro elige)
 
     /// Envía la petición ya formada: interceptores del usuario → opciones (caché, single-flight,

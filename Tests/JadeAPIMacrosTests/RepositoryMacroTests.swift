@@ -323,7 +323,7 @@ final class RepositoryMacroTests: XCTestCase {
             }
             """,
             diagnostics: [
-                DiagnosticSpec(message: "every requirement of a @Repository needs @Api", line: 3, column: 10),
+                DiagnosticSpec(message: "every requirement of a @Repository needs @Api or @Socket", line: 3, column: 10),
                 DiagnosticSpec(message: "a @Repository requirement must be declared 'async throws'", line: 4, column: 23),
                 DiagnosticSpec(message: "@Api path must be a plain string literal, without interpolation", line: 5, column: 10),
                 DiagnosticSpec(message: "@Api method must be written as .get, .post, …", line: 6, column: 24),

@@ -287,3 +287,20 @@ protocol FilesRepository: Sendable {
     @Api("/media/raw", method: .put, kind: .upload)
     func uploadRaw(payload: Body<Data>) async throws -> Upload
 }
+
+// MARK: - Fase 3c: WebSocket
+
+struct Outgoing: Codable, Sendable, Equatable { let text: String }
+struct Incoming: Codable, Sendable, Equatable { let text: String; let length: Int }
+
+@Repository
+protocol ChatRepository: Sendable {
+    @Socket("/ws/echo/:room")
+    func echo(room: String) async throws -> Socket<String, String>
+
+    @Socket("/ws/json")
+    func json(token: Header<String>) async throws -> Socket<Outgoing, Incoming>
+
+    @Socket("/ws/bin")
+    func binary() async throws -> Socket<Data, Data>
+}
