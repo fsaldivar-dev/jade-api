@@ -1,5 +1,7 @@
 # JadeAPI
 
+<img alt="JadeAPI: declara tu API con anotaciones; Jade la ejecuta" src="Assets/cover.jpg" width="100%">
+
 **Declara tu API con anotaciones; Jade la ejecuta.**
 
 ```swift
