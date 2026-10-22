@@ -86,6 +86,7 @@ enum Inference {
 struct ApiArguments {
     var path: String?
     var method: String?
+    var timeout: String?
 
     init(_ attribute: AttributeSyntax, in context: some MacroExpansionContext) {
         guard case .argumentList(let list)? = attribute.arguments else { return }
@@ -100,6 +101,8 @@ struct ApiArguments {
                 } else {
                     context.error(argument.expression, id: "pathLiteral", "@Api path must be a string literal")
                 }
+            } else if argument.label?.text == "timeout" {
+                timeout = argument.expression.trimmedDescription
             } else if argument.label?.text == "method" {
                 if let member = argument.expression.as(MemberAccessExprSyntax.self) {
                     method = member.declName.baseName.text

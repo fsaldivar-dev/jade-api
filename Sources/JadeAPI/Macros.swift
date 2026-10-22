@@ -37,7 +37,7 @@ public macro Repository() = #externalMacro(module: "JadeAPIMacros", type: "Repos
 ///
 /// La ruta explícita es la recomendación; la inferencia es azúcar para prototipos.
 @attached(peer)
-public macro Api(_ path: String = "", method: HTTPMethod? = nil) = #externalMacro(module: "JadeAPIMacros", type: "ApiMacro")
+public macro Api(_ path: String = "", method: HTTPMethod? = nil, timeout: Duration? = nil) = #externalMacro(module: "JadeAPIMacros", type: "ApiMacro")
 
 /// Interceptores para todos los endpoints de un repositorio, por dentro de los del cliente.
 ///
@@ -66,3 +66,16 @@ public macro Unwrap(_ keyPath: String) = #externalMacro(module: "JadeAPIMacros",
 /// ``HTTPError`` original. Sobre el protocolo aplica a todos los endpoints.
 @attached(peer)
 public macro ErrorTransform<Mapper: Transformer>(_ mapper: Mapper.Type) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro") where Mapper.Output: Error
+
+/// Reintenta a nivel HTTP: errores de transporte, 5xx, 408 y 429; nunca 4xx de negocio.
+/// Respeta `Retry-After`. Sobre el protocolo aplica a todos los endpoints.
+@attached(peer)
+public macro Retries(_ attempts: Int, backoff: RetryPolicy.Backoff = .none) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Guarda en memoria las respuestas 2xx de este endpoint (por verbo + URL + body) durante `ttl`.
+@attached(peer)
+public macro CacheFor(_ ttl: Duration) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Peticiones idénticas en vuelo comparten una sola respuesta (deduplicación).
+@attached(peer)
+public macro SingleFlight() = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")

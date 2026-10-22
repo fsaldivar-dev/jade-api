@@ -12,8 +12,10 @@ public struct Request: Sendable, Hashable {
     public var timeout: TimeInterval?
     /// Nombre del requisito que originó la petición: `"getUser(id:)"`.
     public var endpoint: String
+    /// Opciones declaradas sobre el endpoint; las aplica el cliente, pero un interceptor puede leerlas o cambiarlas.
+    public var options: RequestOptions
 
-    public init(method: HTTPMethod, url: URL, path: String, headers: [String: String] = [:], body: Data? = nil, timeout: TimeInterval? = nil, endpoint: String = "") {
+    public init(method: HTTPMethod, url: URL, path: String, headers: [String: String] = [:], body: Data? = nil, timeout: TimeInterval? = nil, endpoint: String = "", options: RequestOptions = .none) {
         self.method = method
         self.url = url
         self.path = path
@@ -21,6 +23,7 @@ public struct Request: Sendable, Hashable {
         self.body = body
         self.timeout = timeout
         self.endpoint = endpoint
+        self.options = options
     }
 
     /// `URLRequest` equivalente.

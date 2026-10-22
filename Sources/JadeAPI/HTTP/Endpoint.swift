@@ -24,6 +24,8 @@ public struct Endpoint {
     public var query: [(String, String?)]
     public var headers: [String: String]
     public var body: BodyContent?
+    /// Timeout, caché, reintentos y single-flight declarados sobre el endpoint o el repositorio.
+    public var options: RequestOptions
 
     public init(
         name: String,
@@ -32,7 +34,8 @@ public struct Endpoint {
         pathParameters: [String: String] = [:],
         query: [(String, String?)] = [],
         headers: [String: String] = [:],
-        body: BodyContent? = nil
+        body: BodyContent? = nil,
+        options: RequestOptions = .none
     ) {
         self.name = name
         self.method = method
@@ -41,6 +44,7 @@ public struct Endpoint {
         self.query = query
         self.headers = headers
         self.body = body
+        self.options = options
     }
 
     /// Ruta con los `:parámetros` sustituidos y percent-encoded.

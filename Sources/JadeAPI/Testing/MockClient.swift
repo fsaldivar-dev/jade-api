@@ -64,17 +64,23 @@ public final class MockClient: HTTPClient, @unchecked Sendable {
         return log
     }
 
+    private func record(_ request: Request) {
+        lock.lock(); defer { lock.unlock() }
+        log.append(request)
+    }
+
     public func reset() {
         lock.lock(); defer { lock.unlock() }
         routes.removeAll(); log.removeAll()
     }
 
     public func send(_ request: Request) async throws -> Response {
+        // Se registra al recibirla, antes de la latencia: una petición cancelada por timeout también "salió".
+        record(request)
         if latency > .zero { try await Task.sleep(for: latency) }
         try Task.checkCancellation()
         let handler: Handler? = {
             lock.lock(); defer { lock.unlock() }
-            log.append(request)
             let segments = request.path.split(separator: "/")
             return routes.last { route in
                 route.method == request.method && route.segments.count == segments.count &&

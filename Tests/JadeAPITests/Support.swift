@@ -167,3 +167,27 @@ protocol ProfilesRepository: Sendable {
     @Api("/profiles/:id/alt")
     func alternative(id: Int) async throws -> Profile          // Unwrap + Transform juntos
 }
+
+// MARK: - Opciones de petición
+
+@Repository
+@Retries(3, backoff: .constant(.milliseconds(10)))
+protocol CatalogRepository: Sendable {
+    @CacheFor(.seconds(60))
+    @Api("/catalog")
+    func catalog() async throws -> [User]
+
+    @SingleFlight
+    @Api("/catalog/featured")
+    func featured() async throws -> [User]
+
+    @Api("/catalog/slow", timeout: .milliseconds(80))
+    func slow() async throws -> [User]
+
+    @Retries(1)
+    @Api("/catalog/no-retry")
+    func noRetry() async throws -> [User]
+
+    @Api("/catalog/:id")
+    func item(id: Int) async throws -> User
+}

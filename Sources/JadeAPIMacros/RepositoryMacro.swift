@@ -16,6 +16,7 @@ public struct RepositoryMacro: PeerMacro {
         let access = proto.modifiers.contains { $0.name.tokenKind == .keyword(.public) } ? "public " : ""
         var methods: [String] = []
 
+        let protocolOptions = Self.optionsExpression(from: proto.attributes, apiTimeout: nil)
         let protocolUnwrap = Self.stringArgument(of: Attributes.find("Unwrap", in: proto.attributes), in: context)
         let protocolErrorMapper = Self.typeArgument(of: Attributes.find("ErrorTransform", in: proto.attributes))
 
@@ -27,7 +28,7 @@ public struct RepositoryMacro: PeerMacro {
                 }
                 continue
             }
-            if let generated = generate(function, access: access, protocolUnwrap: protocolUnwrap, protocolErrorMapper: protocolErrorMapper, in: context) {
+            if let generated = generate(function, access: access, protocolOptions: protocolOptions, protocolUnwrap: protocolUnwrap, protocolErrorMapper: protocolErrorMapper, in: context) {
                 methods.append(generated)
             }
         }
@@ -54,11 +55,11 @@ public struct RepositoryMacro: PeerMacro {
     }
 
     /// Atributos que @Repository consume y no copia al método generado.
-    static let consumedAttributes: Set<String> = ["Api", "Transform", "Unwrap", "ErrorTransform", "Interceptors"]
+    static let consumedAttributes: Set<String> = ["Api", "Transform", "Unwrap", "ErrorTransform", "Interceptors", "Retries", "CacheFor", "SingleFlight"]
 
     // MARK: - Un método por requisito
 
-    private static func generate(_ function: FunctionDeclSyntax, access: String, protocolUnwrap: String?, protocolErrorMapper: String?, in context: some MacroExpansionContext) -> String? {
+    private static func generate(_ function: FunctionDeclSyntax, access: String, protocolOptions: String?, protocolUnwrap: String?, protocolErrorMapper: String?, in context: some MacroExpansionContext) -> String? {
         guard let api = Attributes.find("Api", in: function.attributes) else {
             context.error(function.name, id: "missingApi", "every requirement of a @Repository needs @Api")
             return nil
@@ -111,8 +112,16 @@ public struct RepositoryMacro: PeerMacro {
             let fields = parameters.filter { $0.kind == .field }.map { "(\"\($0.label)\", \($0.valueExpression))" }
             body = fields.isEmpty ? "nil" : ".fields([\(fields.joined(separator: ", "))])"
         }
+        let endpointOptions = optionsExpression(from: function.attributes, apiTimeout: arguments.timeout)
+        let optionsArgument: String
+        switch (endpointOptions, protocolOptions) {
+        case (nil, nil): optionsArgument = ""
+        case (let own?, nil): optionsArgument = ", options: \(own)"
+        case (nil, let base?): optionsArgument = ", options: \(base)"
+        case (let own?, let base?): optionsArgument = ", options: \(own).merging(over: \(base))"
+        }
         statements.append("""
-        let __endpoint = JadeAPI.Endpoint(name: "\(signature)", method: .\(method), path: "\(path)", pathParameters: [\(pathParameters.isEmpty ? ":" : pathParameters.joined(separator: ", "))], query: [\(query.joined(separator: ", "))], headers: __headers, body: \(body))
+        let __endpoint = JadeAPI.Endpoint(name: "\(signature)", method: .\(method), path: "\(path)", pathParameters: [\(pathParameters.isEmpty ? ":" : pathParameters.joined(separator: ", "))], query: [\(query.joined(separator: ", "))], headers: __headers, body: \(body)\(optionsArgument))
         """)
         // Transformadores: @Unwrap, @Transform, @ErrorTransform (requisito gana sobre protocolo).
         let ownUnwrap = stringArgument(of: Attributes.find("Unwrap", in: function.attributes), in: context)
@@ -157,6 +166,24 @@ public struct RepositoryMacro: PeerMacro {
         """
     }
 
+    /// `@Retries(3, backoff: .constant(.seconds(1))) @CacheFor(.seconds(60)) @SingleFlight` + `timeout:` de @Api
+    /// → `JadeAPI.RequestOptions(timeout: …, cache: …, retry: JadeAPI.RetryPolicy(attempts: 3, backoff: …), singleFlight: true)`.
+    static func optionsExpression(from attributes: AttributeListSyntax, apiTimeout: String?) -> String? {
+        var fields: [String] = []
+        if let timeout = apiTimeout { fields.append("timeout: \(timeout)") }
+        if let cache = Attributes.find("CacheFor", in: attributes), case .argumentList(let list)? = cache.arguments, let first = list.first {
+            fields.append("cache: \(first.expression.trimmedDescription)")
+        }
+        if let retries = Attributes.find("Retries", in: attributes), case .argumentList(let list)? = retries.arguments {
+            let inner = list.map { argument in
+                argument.label == nil ? "attempts: \(argument.expression.trimmedDescription)" : argument.trimmedDescription.trimmingTrailingComma()
+            }.joined(separator: ", ")
+            fields.append("retry: JadeAPI.RetryPolicy(\(inner))")
+        }
+        if Attributes.find("SingleFlight", in: attributes) != nil { fields.append("singleFlight: true") }
+        return fields.isEmpty ? nil : "JadeAPI.RequestOptions(\(fields.joined(separator: ", ")))"
+    }
+
     /// `@Unwrap("data")` → `"data"`. Rechaza interpolaciones.
     static func stringArgument(of attribute: AttributeSyntax?, in context: some MacroExpansionContext) -> String? {
         guard let attribute, case .argumentList(let list)? = attribute.arguments, let first = list.first else { return nil }
@@ -190,5 +217,14 @@ public struct RepositoryMacro: PeerMacro {
         case "Response": return "performResponse"
         default: return "perform"
         }
+    }
+}
+
+
+extension String {
+    func trimmingTrailingComma() -> String {
+        var text = self
+        while text.hasSuffix(",") || text.hasSuffix(" ") { text.removeLast() }
+        return text
     }
 }

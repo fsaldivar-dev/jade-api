@@ -16,6 +16,8 @@ public enum HTTPError: Error, CustomStringConvertible {
     case unmocked(Request)
     /// La tarea fue cancelada.
     case cancelled
+    /// Se superó el `timeout` de las opciones del endpoint.
+    case timeout(Duration, Request)
 
     public var description: String {
         switch self {
@@ -26,6 +28,7 @@ public enum HTTPError: Error, CustomStringConvertible {
         case .decoding(let error, let response): "no se pudo decodificar la respuesta de \(response.request.path): \(error)"
         case .unmocked(let request): "sin mock para \(request.method.rawHTTP) \(request.path)"
         case .cancelled: "cancelada"
+        case .timeout(let duration, let request): "timeout de \(duration) en \(request.method.rawHTTP) \(request.path)"
         }
     }
 

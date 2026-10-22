@@ -12,6 +12,9 @@ public struct AppClient: Sendable {
     public var timeout: TimeInterval
     /// Cadena de interceptores: el primero es el más externo; el último habla con el transporte.
     public var interceptors: [any Interceptor]
+    /// Opciones por defecto para todos los endpoints del cliente; las del repositorio y el endpoint ganan.
+    public var options: RequestOptions = .none
+    private let engine = OptionsEngine()
 
     public init(
         baseURL: URL,
@@ -80,14 +83,20 @@ public struct AppClient: Sendable {
         }
         for (name, value) in endpoint.headers { headers[name] = value }
 
-        return Request(method: endpoint.method, url: url, path: path, headers: headers, body: body, timeout: timeout, endpoint: endpoint.name)
+        return Request(method: endpoint.method, url: url, path: path, headers: headers, body: body, timeout: timeout, endpoint: endpoint.name,
+                       options: endpoint.options.merging(over: options))
     }
 
     // MARK: - Ejecución (una variante por familia de retorno; la macro elige)
 
-    /// Envía la petición ya formada a través de la cadena de interceptores y el transporte, sin validar el status.
+    /// Envía la petición ya formada: interceptores del usuario → opciones (caché, single-flight,
+    /// reintentos, timeout) → transporte. No valida el status.
     public func send(_ request: Request) async throws -> Response {
-        try await InterceptorChain.run(interceptors, request: request, transport: transport)
+        let engine = self.engine
+        let transport = self.transport
+        return try await InterceptorChain.run(interceptors, request: request, transport: ClosureTransport { request in
+            try await engine.send(request, options: request.options) { try await transport.send($0) }
+        })
     }
 
     /// Envía y valida 2xx. Base de las demás variantes.
@@ -169,4 +178,12 @@ struct FieldsBody: Encodable {
             try container.encode(AnyEncodable(value), forKey: Key(name))
         }
     }
+}
+
+
+/// Transporte definido por un closure; permite insertar el motor de opciones al final de la cadena.
+struct ClosureTransport: HTTPClient {
+    let body: @Sendable (Request) async throws -> Response
+    init(_ body: @escaping @Sendable (Request) async throws -> Response) { self.body = body }
+    func send(_ request: Request) async throws -> Response { try await body(request) }
 }
