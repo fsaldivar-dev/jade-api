@@ -127,7 +127,13 @@ Como el repositorio es un protocolo, también puedes escribir un mock a mano y n
 
 ## Decoradores sobre endpoints
 
-Cualquier decorador de AnnotationSwift se apila sobre un requisito y se aplica al método generado. Márcalo `@Annotation` y activa el plugin `AnnotationRegistry` en tu target para no declarar nada a mano:
+Cualquier decorador de AnnotationSwift se apila sobre un requisito y se aplica al método generado. Márcalo `@Annotation` y activa el plugin `JadeRegistry` en tu target para no declarar nada a mano:
+
+```swift
+.target(name: "App", dependencies: [.product(name: "JadeAPI", package: "jade-api")],
+        plugins: [.plugin(name: "JadeRegistry", package: "jade-api")])
+```
+
 
 ```swift
 @Annotation

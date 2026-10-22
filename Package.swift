@@ -9,6 +9,8 @@ let package = Package(
     ],
     products: [
         .library(name: "JadeAPI", targets: ["JadeAPI"]),
+        /// Build-tool plugin: registra tus decoradores `@Annotation` para poder usar `@Logged` directo.
+        .plugin(name: "JadeRegistry", targets: ["JadeRegistry"]),
     ],
     dependencies: [
         // Anotaciones apilables: @Decorable, Decorator, GuardDecorator, HookDecorator, MarkerMacro.
@@ -35,10 +37,17 @@ let package = Package(
                 .product(name: "AnnotationSwift", package: "experimental-annotation-swift"),
             ]
         ),
+        // Plugin de registro de anotaciones, sobre la herramienta del núcleo.
+        .plugin(
+            name: "JadeRegistry",
+            capability: .buildTool(),
+            dependencies: [.product(name: "annotation-registry", package: "experimental-annotation-swift")]
+        ),
+
         .testTarget(
             name: "JadeAPITests",
             dependencies: ["JadeAPI"],
-            plugins: [.plugin(name: "AnnotationRegistry", package: "experimental-annotation-swift")]
+            plugins: ["JadeRegistry"]
         ),
         .testTarget(
             name: "JadeAPIMacrosTests",
