@@ -498,7 +498,17 @@ Tres capas, una regla: **interceptor** si tocas HTTP, **decorador** si tocas la 
 
 ## Documentación
 
-Catálogo DocC con Quick Start y los niveles: `swift package generate-documentation --target JadeAPI`, o
+[`Documentation/`](Documentation/) explica *por qué* la librería está hecha así, tema por tema (qué es ·
+por qué · cómo funciona · cómo se configura · en la demo · desarrollo seguro), con diagramas Mermaid y
+anclas para saltar directo a implementar. Empieza por [el índice](Documentation/README.md):
+
+- [1 · Fundamentos](Documentation/01-Fundamentos.md) — el modelo, el viaje de una petición, declarar endpoints.
+- [2 · Cliente y entornos](Documentation/02-Cliente-y-entornos.md) — `AppClient`, el transporte, `Environment`.
+- [3 · El pipeline](Documentation/03-El-pipeline.md) — interceptores, auth, caché, reintentos, transformadores, grupos.
+- [4 · Transporte avanzado](Documentation/04-Transporte-avanzado.md) — streaming, descargas, WebSocket, métricas.
+- [5 · Desarrollo seguro](Documentation/05-Desarrollo-seguro.md) — pinning, secretos, Keychain, DPoP, firmas, App Attest, OIDC.
+
+Y el catálogo DocC de referencia de API: `swift package generate-documentation --target JadeAPI`, o
 *Product → Build Documentation* en Xcode.
 
 ## Requisitos

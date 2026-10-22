@@ -28,6 +28,8 @@ necesita los conceptos del siguiente.
   transformadores, opciones de petición y grupos.
 - **Nivel 3 · big app**: streams, transferencias, WebSocket y la seguridad que piden los bancos.
 
+La guía conceptual tema por tema (qué es, por qué, cómo se configura, con diagramas y desarrollo seguro) está en la carpeta `Documentation/` del repositorio.
+
 Empieza por <doc:QuickStart>. Una regla de bolsillo para elegir pieza: *interceptor si tocas HTTP,
 decorador si tocas la llamada, transformador si tocas datos*.
 

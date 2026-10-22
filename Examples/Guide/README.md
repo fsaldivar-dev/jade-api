@@ -1,5 +1,7 @@
 # Guía de JadeAPI
 
+> La teoría de cada pieza (qué es, por qué, cómo se configura) está en [`Documentation/`](../../Documentation/README.md). Esta app es esa teoría corriendo.
+
 App macOS con una pestaña por pieza de la librería, contra **APIs públicas reales** (entorno `live`) o un
 servidor falso en memoria (entorno `mock`). Es una guía de implementación: cada pantalla es un archivo de
 vista y un store pequeño, sin genéricos ni abstracciones, y el comentario de arriba de cada archivo dice qué
