@@ -9,6 +9,8 @@ let package = Package(
     ],
     products: [
         .library(name: "JadeAPI", targets: ["JadeAPI"]),
+        /// Dobles de prueba (`MockClient`). Solo para targets de test y previews: la app no lo enlaza.
+        .library(name: "JadeTesting", targets: ["JadeTesting"]),
         /// Build-tool plugin: registra tus decoradores `@Annotation` para poder usar `@Logged` directo.
         .plugin(name: "JadeRegistry", targets: ["JadeRegistry"]),
     ],
@@ -44,9 +46,11 @@ let package = Package(
             dependencies: [.product(name: "annotation-registry", package: "experimental-annotation-swift")]
         ),
 
+        .target(name: "JadeTesting", dependencies: ["JadeAPI"]),
+
         .testTarget(
             name: "JadeAPITests",
-            dependencies: ["JadeAPI"],
+            dependencies: ["JadeAPI", "JadeTesting"],
             plugins: ["JadeRegistry"]
         ),
         .testTarget(

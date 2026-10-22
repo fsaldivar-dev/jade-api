@@ -1,4 +1,15 @@
 import Foundation
+import JadeAPI
+
+/// Errores propios del entorno de pruebas.
+public enum MockError: Error, CustomStringConvertible {
+    /// Un `MockClient` recibió una petición sin handler registrado.
+    case unmocked(Request)
+    public var description: String {
+        if case .unmocked(let request) = self { return "sin mock para \(request.method.rawHTTP) \(request.path)" }
+        return ""
+    }
+}
 
 /// Respuesta de un mock.
 public struct MockResponse: Sendable {
@@ -87,7 +98,7 @@ public final class MockClient: HTTPClient, @unchecked Sendable {
                 zip(route.segments, segments).allSatisfy { $0.hasPrefix(":") || $0 == $1 }
             }?.handler
         }()
-        guard let handler else { throw HTTPError.unmocked(request) }
+        guard let handler else { throw MockError.unmocked(request) }
         let mock = try handler(request)
         return Response(status: mock.status, headers: mock.headers, body: mock.body, request: request)
     }

@@ -14,6 +14,8 @@ public struct AppClient: Sendable {
     public var interceptors: [any Interceptor]
     /// Opciones por defecto para todos los endpoints del cliente; las del repositorio y el endpoint ganan.
     public var options: RequestOptions = .none
+    /// Defaults seguros: solo HTTPS fuera de Debug, redacción en logs.
+    public var security: SecurityPolicy = .default
     private let engine = OptionsEngine()
 
     public init(
@@ -32,6 +34,7 @@ public struct AppClient: Sendable {
         self.encoder = encoder
         self.headers = headers
         self.timeout = timeout
+        SecurityAudit.checkStaticHeaders(headers, origin: "AppClient(headers:)")
     }
 
     /// Copia del cliente con interceptores añadidos por dentro de los existentes
@@ -57,6 +60,7 @@ public struct AppClient: Sendable {
 
     /// Convierte un ``Endpoint`` en una ``Request`` absoluta con el body codificado.
     public func makeRequest(_ endpoint: Endpoint) throws -> Request {
+        try security.validate(baseURL)
         let path = try endpoint.resolvedPath()
         guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             throw HTTPError.invalidURL(baseURL.absoluteString)

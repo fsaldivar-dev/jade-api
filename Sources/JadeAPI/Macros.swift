@@ -79,3 +79,9 @@ public macro CacheFor(_ ttl: Duration) = #externalMacro(module: "JadeAPIMacros",
 /// Peticiones idénticas en vuelo comparten una sola respuesta (deduplicación).
 @attached(peer)
 public macro SingleFlight() = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Marca una operación de escritura como idempotente: cada llamada manda un header
+/// `Idempotency-Key` único (UUID) que el servidor usa para no duplicar efectos. Es la única forma
+/// en que `@Retries` acepta reintentar un POST o PATCH.
+@attached(peer)
+public macro Idempotent() = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")

@@ -116,6 +116,8 @@ let client = AppClient(stage: stage)
 ## Probar sin red
 
 ```swift
+import JadeTesting   // producto aparte: solo en tests y previews
+
 let mock = MockClient()
     .on(.get, "/users/:id") { request in .json(#"{"id": 7, "name": "Paco"}"#) }
     .on(.post, "/auth") { request in request.body == nil ? .status(400) : .json(#"{"value": "t"}"#) }
@@ -239,6 +241,18 @@ let (featured, offers, categories) = try await client.all(
 ```
 
 Para dos o tres distintas sin límite, `async let` del lenguaje basta.
+
+## Defaults seguros (nivel 1)
+
+Sin configurar nada, el cliente ya cumple lo que un auditor móvil revisa primero (OWASP MASVS-NETWORK y STORAGE, PCI DSS 6.5):
+
+- **Solo HTTPS fuera de Debug.** Una base `http://` lanza `HTTPError.insecureURL` antes de salir. En Debug se permite para apuntar a `localhost`. Ajustable con `client.security`.
+- **Un reintento nunca duplica un pago.** `@Retries` solo aplica a verbos idempotentes. Un `POST` o `PATCH` con reintentos exige `@Idempotent`, que manda una `Idempotency-Key` única por llamada y la repite en cada reintento; el compilador lo rechaza si falta, y el cliente lo vuelve a comprobar en runtime.
+- **Logs mudos en release.** `RequestLogger` no escribe nada en una build de release salvo `enabledInRelease: true`, y en Debug redacta headers, query y body con nombres de credencial o de tarjeta (`Authorization`, `X-Api-Key`, `password`, `otp`, `cvv`, …).
+- **Nada de pruebas en el binario.** `MockClient` vive en el producto `JadeTesting`; la app no lo enlaza.
+- **Aviso de secretos.** En Debug, un header con nombre de credencial y valor fijo (`CommonHeaders(["X-Api-Key": "…"])`) imprime una advertencia: todo lo que va en el cliente es público.
+
+Lo que la librería no puede hacer por ti: autorizar en el servidor, guardar el token en el Keychain (viene en el nivel 3 con `KeychainTokenProvider`), ni evitar que alguien lea las URLs de producción, que no son secreto.
 
 ## Concurrencia
 

@@ -17,6 +17,7 @@ public struct RepositoryMacro: PeerMacro {
         var methods: [String] = []
 
         let protocolOptions = Self.optionsExpression(from: proto.attributes, apiTimeout: nil)
+        let protocolRetries = Attributes.find("Retries", in: proto.attributes)
         let protocolUnwrap = Self.stringArgument(of: Attributes.find("Unwrap", in: proto.attributes), in: context)
         let protocolErrorMapper = Self.typeArgument(of: Attributes.find("ErrorTransform", in: proto.attributes))
 
@@ -28,7 +29,7 @@ public struct RepositoryMacro: PeerMacro {
                 }
                 continue
             }
-            if let generated = generate(function, access: access, protocolOptions: protocolOptions, protocolUnwrap: protocolUnwrap, protocolErrorMapper: protocolErrorMapper, in: context) {
+            if let generated = generate(function, access: access, protocolOptions: protocolOptions, protocolRetries: protocolRetries, protocolUnwrap: protocolUnwrap, protocolErrorMapper: protocolErrorMapper, in: context) {
                 methods.append(generated)
             }
         }
@@ -55,11 +56,11 @@ public struct RepositoryMacro: PeerMacro {
     }
 
     /// Atributos que @Repository consume y no copia al método generado.
-    static let consumedAttributes: Set<String> = ["Api", "Transform", "Unwrap", "ErrorTransform", "Interceptors", "Retries", "CacheFor", "SingleFlight"]
+    static let consumedAttributes: Set<String> = ["Api", "Transform", "Unwrap", "ErrorTransform", "Interceptors", "Retries", "CacheFor", "SingleFlight", "Idempotent"]
 
     // MARK: - Un método por requisito
 
-    private static func generate(_ function: FunctionDeclSyntax, access: String, protocolOptions: String?, protocolUnwrap: String?, protocolErrorMapper: String?, in context: some MacroExpansionContext) -> String? {
+    private static func generate(_ function: FunctionDeclSyntax, access: String, protocolOptions: String?, protocolRetries: AttributeSyntax?, protocolUnwrap: String?, protocolErrorMapper: String?, in context: some MacroExpansionContext) -> String? {
         guard let api = Attributes.find("Api", in: function.attributes) else {
             context.error(function.name, id: "missingApi", "every requirement of a @Repository needs @Api")
             return nil
@@ -93,11 +94,24 @@ public struct RepositoryMacro: PeerMacro {
             return nil
         }
 
+        // Seguridad: un POST/PATCH solo se reintenta con @Idempotent.
+        let isIdempotentMethod = ["get", "head", "options", "put", "delete"].contains(method)
+        let hasIdempotent = Attributes.find("Idempotent", in: function.attributes) != nil
+        let ownRetries = Attributes.find("Retries", in: function.attributes)
+        if !isIdempotentMethod, !hasIdempotent, let retries = ownRetries ?? protocolRetries, !Self.isSingleAttempt(retries) {
+            context.error(ownRetries ?? api, id: "unsafeRetry",
+                          "'\(function.name.text)' is a \(method.uppercased()) and could be executed twice: add @Idempotent (sends an Idempotency-Key) or @Retries(1) to opt out")
+            return nil
+        }
+
         // Construcción del Endpoint.
         let signature = function.name.text + "(" + function.signature.parameterClause.parameters.map { "\($0.firstName.text):" }.joined() + ")"
         var statements: [String] = []
         let headerParameters = parameters.filter { $0.kind == .header }
-        statements.append("\(headerParameters.isEmpty ? "let" : "var") __headers: [String: String] = [:]")
+        statements.append("\(headerParameters.isEmpty && !hasIdempotent ? "let" : "var") __headers: [String: String] = [:]")
+        if hasIdempotent {
+            statements.append("__headers[\"Idempotency-Key\"] = Foundation.UUID().uuidString")
+        }
         for parameter in headerParameters {
             statements.append("if let __value = JadeAPI.ParameterValue.text(\(parameter.valueExpression)) { __headers[\"\(parameter.label)\"] = __value }")
         }
@@ -164,6 +178,12 @@ public struct RepositoryMacro: PeerMacro {
                 \(statements.joined(separator: "\n        "))
             }
         """
+    }
+
+    /// `@Retries(1)` desactiva reintentos; se usa para no exigir @Idempotent.
+    static func isSingleAttempt(_ retries: AttributeSyntax) -> Bool {
+        guard case .argumentList(let list)? = retries.arguments, let first = list.first, first.label == nil else { return false }
+        return first.expression.trimmedDescription == "1"
     }
 
     /// `@Retries(3, backoff: .constant(.seconds(1))) @CacheFor(.seconds(60)) @SingleFlight` + `timeout:` de @Api

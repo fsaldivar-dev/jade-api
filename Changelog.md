@@ -5,9 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.2.0] - Unreleased
-Iteración 2: el pipeline.
+Iteración 2: el pipeline, y los defaults seguros del nivel 1.
 
 ### Added
+- `SecurityPolicy` en `AppClient.security`: solo HTTPS fuera de Debug (`HTTPError.insecureURL`),
+  claves sensibles para redacción. `SecurityAudit` avisa en Debug de headers de credencial con valor fijo.
+- `@Idempotent`: `Idempotency-Key` única por llamada, repetida en los reintentos. `@Retries` sobre
+  POST/PATCH sin `@Idempotent` es error de compilación; el motor tampoco reintenta en runtime.
+- `RequestLogger` mudo en release salvo `enabledInRelease: true`; redacta headers, query y body.
+- Producto `JadeTesting` con `MockClient`, `MockResponse` y `MockError.unmocked`.
 - Interceptores: `Interceptor` (`intercept(request, next:)`), atajos `RequestAdapter` y
   `ResponseInterceptor`, cadena en `AppClient(interceptors:)`, `@Interceptors(...)` por repositorio.
   Incluidos: `CommonHeaders`, `RequestLogger` (línea o cURL, con redacción) y `AuthInterceptor`
@@ -24,6 +30,7 @@ Iteración 2: el pipeline.
 
 ### Changed
 - Las peticiones del `MockClient` se registran al recibirse, antes de la latencia.
+- `MockClient` se mueve de `JadeAPI` a `JadeTesting`; `HTTPError.unmocked` pasa a `MockError.unmocked`.
 
 ## [0.1.0] - Unreleased
 Iteración 1: declarar y llamar.

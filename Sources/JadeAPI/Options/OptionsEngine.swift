@@ -29,7 +29,7 @@ final class OptionsEngine: Sendable {
     // MARK: Reintentos
 
     private func withRetry(_ policy: RetryPolicy?, request: Request, _ attempt: @Sendable () async throws -> Response) async throws -> Response {
-        guard let policy, policy.attempts > 1 else { return try await attempt() }
+        guard let policy, policy.attempts > 1, request.isSafeToRetry else { return try await attempt() }
         var lastError: (any Error)?
         for number in 1...policy.attempts {
             do {
@@ -82,6 +82,11 @@ final class OptionsEngine: Sendable {
 extension Request {
     /// Clave de caché y de deduplicación: verbo + URL + body.
     var cacheKey: String { "\(method.rawHTTP) \(url.absoluteString) \(body?.hashValue ?? 0)" }
+
+    /// Un reintento no puede duplicar efectos: verbo idempotente, o `Idempotency-Key` presente.
+    public var isSafeToRetry: Bool {
+        method.isIdempotent || headers.keys.contains { $0.caseInsensitiveCompare("Idempotency-Key") == .orderedSame }
+    }
 }
 
 /// Caché en memoria con expiración por entrada.

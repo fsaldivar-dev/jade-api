@@ -1,5 +1,6 @@
 import Foundation
 import JadeAPI
+import JadeTesting
 import Testing
 
 @Suite("Repositorios contra MockClient")
@@ -127,7 +128,7 @@ struct RepositoryTests {
         do { _ = try await users.user(id: 1) } catch let error as HTTPError {
             guard case .decoding = error else { Issue.record("esperaba .decoding, llegó \(error)"); return }
         }
-        do { _ = try await users.getUser(id: 1) } catch let error as HTTPError {
+        do { _ = try await users.getUser(id: 1) } catch let error as MockError {
             guard case .unmocked(let request) = error else { Issue.record("esperaba .unmocked"); return }
             #expect(request.path == "/user")
         }

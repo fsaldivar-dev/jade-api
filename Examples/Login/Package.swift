@@ -14,7 +14,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Login",
-            dependencies: [.product(name: "JadeAPI", package: "JadeAPI")],
+            dependencies: [
+                .product(name: "JadeAPI", package: "JadeAPI"),
+                .product(name: "JadeTesting", package: "JadeAPI"),   // solo por el Stage.mock de la demo
+            ],
             // Genera las declaraciones de @Logged y @Retry a partir de los tipos @Annotation.
             plugins: [.plugin(name: "JadeRegistry", package: "JadeAPI")]
         ),

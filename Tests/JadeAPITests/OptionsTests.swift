@@ -1,5 +1,6 @@
 import Foundation
 import JadeAPI
+import JadeTesting
 import Testing
 
 @Suite("Opciones de petición: reintentos, caché, single-flight, timeout")

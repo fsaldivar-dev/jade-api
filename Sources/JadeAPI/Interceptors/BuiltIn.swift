@@ -5,7 +5,10 @@ import Foundation
 /// Añade headers a todas las peticiones. Los del endpoint ganan si coinciden.
 public struct CommonHeaders: RequestAdapter {
     public let headers: [String: String]
-    public init(_ headers: [String: String]) { self.headers = headers }
+    public init(_ headers: [String: String]) {
+        self.headers = headers
+        SecurityAudit.checkStaticHeaders(headers, origin: "CommonHeaders")
+    }
 
     public func adapt(_ request: Request) async throws -> Request {
         var request = request
@@ -16,23 +19,40 @@ public struct CommonHeaders: RequestAdapter {
 
 // MARK: - Log
 
-/// Escribe cada petición y respuesta. Redacta los headers sensibles.
+/// Escribe cada petición y respuesta, redactando credenciales y datos sensibles en headers, query y body.
+///
+/// En una build de release no escribe nada salvo que se cree con `enabledInRelease: true`; un log de
+/// red en producción es una fuga de datos esperando a ocurrir.
 public struct RequestLogger: Interceptor {
     public enum Style: Sendable { case line, curl }
 
     public let style: Style
-    public let redacting: Set<String>
+    public let policy: SecurityPolicy
+    public let enabledInRelease: Bool
     public let sink: @Sendable (String) -> Void
 
-    public init(_ style: Style = .line, redacting: Set<String> = ["Authorization", "Cookie", "Set-Cookie"], sink: @escaping @Sendable (String) -> Void = { print($0) }) {
+    public init(_ style: Style = .line, policy: SecurityPolicy = .default, enabledInRelease: Bool = false, sink: @escaping @Sendable (String) -> Void = { print($0) }) {
         self.style = style
-        self.redacting = redacting
+        self.policy = policy
+        self.enabledInRelease = enabledInRelease
         self.sink = sink
     }
 
+    /// Compatibilidad: `redacting:` añade claves a las sensibles de la política.
+    public init(_ style: Style = .line, redacting extra: Set<String>, sink: @escaping @Sendable (String) -> Void = { print($0) }) {
+        var policy = SecurityPolicy.default
+        policy.sensitiveKeys.formUnion(extra.map { $0.lowercased() })
+        self.init(style, policy: policy, sink: sink)
+    }
+
+    var isEnabled: Bool { SecurityPolicy.isDebugBuild || enabledInRelease }
+
     public func intercept(_ request: Request, next: Next) async throws -> Response {
+        guard isEnabled else { return try await next(request) }
         var shown = request
-        for name in redacting where shown.headers[name] != nil { shown.headers[name] = "•••" }
+        for (name, value) in shown.headers { shown.headers[name] = policy.redacted(name, value) }
+        if let url = URL(string: policy.redactedQuery(of: request.url)) { shown.url = url }
+        if let body = policy.redactedBody(request.body) { shown.body = Data(body.utf8) }
         switch style {
         case .line: sink("→ \(request.method.rawHTTP) \(request.path)  [\(request.endpoint)]")
         case .curl: sink("→ \(shown.curl)")

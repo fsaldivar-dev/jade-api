@@ -12,8 +12,8 @@ public enum HTTPError: Error, CustomStringConvertible {
     case status(Int, Response)
     /// La respuesta llegó pero no se pudo decodificar al tipo de retorno.
     case decoding(any Error, Response)
-    /// Un `MockClient` recibió una petición sin handler registrado.
-    case unmocked(Request)
+    /// URL con esquema `http://` fuera de una build de depuración. Ver ``SecurityPolicy``.
+    case insecureURL(URL)
     /// La tarea fue cancelada.
     case cancelled
     /// Se superó el `timeout` de las opciones del endpoint.
@@ -26,7 +26,7 @@ public enum HTTPError: Error, CustomStringConvertible {
         case .transport(let error): "error de red: \(error.localizedDescription)"
         case .status(let code, let response): "HTTP \(code) en \(response.request.method.rawHTTP) \(response.request.path)"
         case .decoding(let error, let response): "no se pudo decodificar la respuesta de \(response.request.path): \(error)"
-        case .unmocked(let request): "sin mock para \(request.method.rawHTTP) \(request.path)"
+        case .insecureURL(let url): "URL insegura fuera de Debug: \(url.absoluteString) (solo https)"
         case .cancelled: "cancelada"
         case .timeout(let duration, let request): "timeout de \(duration) en \(request.method.rawHTTP) \(request.path)"
         }

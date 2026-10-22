@@ -1,5 +1,6 @@
 import Foundation
 import JadeAPI
+import JadeTesting
 
 // MARK: - Modelos
 
@@ -197,4 +198,21 @@ final class ConcurrencyMeter: @unchecked Sendable {
     private let lock = NSLock(); private var current = 0; private(set) var peak = 0
     func enter() { lock.lock(); current += 1; peak = max(peak, current); lock.unlock() }
     func exit() { lock.lock(); current -= 1; lock.unlock() }
+}
+
+// MARK: - Nivel 1: defaults seguros
+
+@Repository
+@Retries(3, backoff: .constant(.milliseconds(5)))
+protocol OrdersRepository: Sendable {
+    @Idempotent
+    @Api("/orders", method: .post)
+    func place(order: String) async throws -> User          // POST reintentable: lleva Idempotency-Key
+
+    @Retries(1)
+    @Api("/orders/:id/cancel", method: .post)
+    func cancel(id: Int) async throws                        // POST sin reintentos: permitido sin @Idempotent
+
+    @Api("/orders/:id")
+    func order(id: Int) async throws -> User                 // GET: hereda los reintentos del protocolo
 }

@@ -1,5 +1,6 @@
 import Foundation
 import JadeAPI
+import JadeTesting
 
 /// Entornos de la app. `mock` responde con fixtures sin tocar la red.
 enum Stage: String, StageProtocol, CaseIterable, Identifiable {

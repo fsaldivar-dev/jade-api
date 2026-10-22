@@ -10,6 +10,8 @@ let macros: [String: Macro.Type] = [
     "Unwrap": RepositoryAttributeMacro.self,
     "Transform": RepositoryAttributeMacro.self,
     "ErrorTransform": RepositoryAttributeMacro.self,
+    "Retries": RepositoryAttributeMacro.self,
+    "Idempotent": RepositoryAttributeMacro.self,
 ]
 
 final class RepositoryMacroTests: XCTestCase {
@@ -140,6 +142,60 @@ final class RepositoryMacroTests: XCTestCase {
                 }
             }
             """,
+            macros: macros
+        )
+    }
+
+    func testUnsafeRetryIsRejected() {
+        assertMacroExpansion(
+            """
+            @Repository
+            @Retries(3)
+            protocol Orders {
+                @Api("/orders", method: .post)
+                func place() async throws
+
+                @Idempotent
+                @Api("/orders", method: .post)
+                func placeSafely() async throws
+
+                @Retries(1)
+                @Api("/orders/:id/cancel", method: .post)
+                func cancel(id: Int) async throws
+            }
+            """,
+            expandedSource: """
+            protocol Orders {
+                func place() async throws
+                func placeSafely() async throws
+                func cancel(id: Int) async throws
+            }
+
+            @AnnotationSwift.Decorable
+            struct OrdersClient: Orders, Sendable {
+                let client: JadeAPI.AppClient
+
+                init(client: JadeAPI.AppClient) {
+                    self.client = client
+                }
+
+                func placeSafely() async throws {
+                    var __headers: [String: String] = [:]
+                    __headers["Idempotency-Key"] = Foundation.UUID().uuidString
+                    let __endpoint = JadeAPI.Endpoint(name: "placeSafely()", method: .post, path: "/orders", pathParameters: [:], query: [], headers: __headers, body: nil, options: JadeAPI.RequestOptions(retry: JadeAPI.RetryPolicy(attempts: 3)))
+                    return try await client.performVoid(__endpoint)
+                }
+
+                func cancel(id: Int) async throws {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "cancel(id:)", method: .post, path: "/orders/:id/cancel", pathParameters: ["id": JadeAPI.ParameterValue.text(id) ?? ""], query: [], headers: __headers, body: nil, options: JadeAPI.RequestOptions(retry: JadeAPI.RetryPolicy(attempts: 1)).merging(over: JadeAPI.RequestOptions(retry: JadeAPI.RetryPolicy(attempts: 3))))
+                    return try await client.performVoid(__endpoint)
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(message: "'place' is a POST and could be executed twice: add @Idempotent (sends an Idempotency-Key) or @Retries(1) to opt out", line: 4, column: 5),
+            ],
             macros: macros
         )
     }
