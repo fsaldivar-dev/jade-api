@@ -169,7 +169,16 @@ public struct RepositoryMacro: PeerMacro {
         let ownUnwrap = stringArgument(of: Attributes.find("Unwrap", in: function.attributes), in: context)
         let mapper = typeArgument(of: Attributes.find("Transform", in: function.attributes))
         let errorMapper = typeArgument(of: Attributes.find("ErrorTransform", in: function.attributes)) ?? protocolErrorMapper
-        let perform = performCall(for: function)
+        let perform = performCall(for: function, kind: arguments.kind)
+        if arguments.kind != "request", ownUnwrap != nil || mapper != nil || errorMapper != nil {
+            context.error(api, id: "streamTransform", "@Unwrap, @Transform and @ErrorTransform only apply to kind: .request")
+            return nil
+        }
+        if arguments.kind != "request", let expected = Self.expectedReturn(for: arguments.kind),
+           !(function.signature.returnClause?.type.trimmedDescription ?? "").hasPrefix(expected) {
+            context.error(function.signature, id: "kindReturn", "kind: .\(arguments.kind) must return \(expected)…")
+            return nil
+        }
         if perform != "perform", ownUnwrap != nil || mapper != nil {
             let which = mapper != nil ? "@Transform" : "@Unwrap"
             context.error(function.signature, id: "transformReturn", "\(which) requires a Decodable return type; '\(function.signature.returnClause?.type.trimmedDescription ?? "Void")' is handled raw")
@@ -253,8 +262,30 @@ public struct RepositoryMacro: PeerMacro {
         return first.expression.trimmedDescription
     }
 
-    /// Variante de `perform` según el tipo de retorno; la macro lo sabe en compilación.
-    private static func performCall(for function: FunctionDeclSyntax) -> String {
+    /// Tipo de retorno que exige cada `kind` de stream o transferencia.
+    static func expectedReturn(for kind: String) -> String? {
+        switch kind {
+        case "bytes": "AsyncThrowingStream<Data"
+        case "lines": "AsyncThrowingStream<String"
+        case "ndjson": "AsyncThrowingStream<"
+        case "sse": "AsyncThrowingStream<ServerEvent"
+        case "download": "Download"
+        case "upload": "Upload"
+        default: nil
+        }
+    }
+
+    /// Variante de `perform` según el tipo de retorno y el `kind`; la macro lo sabe en compilación.
+    private static func performCall(for function: FunctionDeclSyntax, kind: String = "request") -> String {
+        switch kind {
+        case "bytes": return "performBytes"
+        case "lines": return "performLines"
+        case "ndjson": return "performNDJSON"
+        case "sse": return "performServerEvents"
+        case "download": return "performDownload"
+        case "upload": return "performUpload"
+        default: break
+        }
         guard let type = function.signature.returnClause?.type else { return "performVoid" }
         var text = type.trimmedDescription
         if text.hasPrefix("JadeAPI.") { text = String(text.dropFirst("JadeAPI.".count)) }

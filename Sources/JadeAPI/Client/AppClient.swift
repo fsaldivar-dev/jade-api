@@ -91,6 +91,49 @@ public struct AppClient: Sendable {
                        options: endpoint.options.merging(over: options))
     }
 
+    // MARK: - Streams (los interceptores solo adaptan la petición; la respuesta no termina)
+
+    /// Abre un stream y valida el status antes de devolverlo. Si el servidor responde fuera de 2xx,
+    /// lee el body completo y lanza ``HTTPError/status(_:_:)`` como una petición normal.
+    public func performStreaming(_ endpoint: Endpoint, isolation: isolated (any Actor)? = #isolation) async throws -> StreamingResponse {
+        var request = try makeRequest(endpoint)
+        for interceptor in interceptors {
+            if let adapter = interceptor as? any RequestAdapter { request = try await adapter.adapt(request) }
+        }
+        if let timeout = request.options.timeout {
+            request.timeout = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
+        }
+        let streaming = try await transport.stream(request)
+        guard streaming.isSuccess else {
+            var body = Data()
+            for try await chunk in streaming.chunks { body.append(chunk) }
+            throw HTTPError.status(streaming.status, Response(status: streaming.status, headers: streaming.headers, body: body, request: request))
+        }
+        return streaming
+    }
+
+    /// `kind: .bytes` → trozos crudos.
+    public func performBytes(_ endpoint: Endpoint, isolation: isolated (any Actor)? = #isolation) async throws -> AsyncThrowingStream<Data, any Error> {
+        try await performStreaming(endpoint, isolation: isolation).chunks
+    }
+
+    /// `kind: .lines` → líneas de texto.
+    public func performLines(_ endpoint: Endpoint, isolation: isolated (any Actor)? = #isolation) async throws -> AsyncThrowingStream<String, any Error> {
+        StreamParsing.lines(try await performStreaming(endpoint, isolation: isolation).chunks)
+    }
+
+    /// `kind: .ndjson` → un elemento decodificado por línea.
+    public func performNDJSON<Element: Decodable & Sendable>(_ endpoint: Endpoint, isolation: isolated (any Actor)? = #isolation) async throws -> AsyncThrowingStream<Element, any Error> {
+        StreamParsing.ndjson(try await performStreaming(endpoint, isolation: isolation).chunks, as: Element.self, decoder: decoder)
+    }
+
+    /// `kind: .sse` → eventos de servidor.
+    public func performServerEvents(_ endpoint: Endpoint, isolation: isolated (any Actor)? = #isolation) async throws -> AsyncThrowingStream<ServerEvent, any Error> {
+        var endpoint = endpoint
+        endpoint.headers["Accept"] = endpoint.headers["Accept"] ?? "text/event-stream"
+        return StreamParsing.serverEvents(try await performStreaming(endpoint, isolation: isolation).chunks)
+    }
+
     // MARK: - Ejecución (una variante por familia de retorno; la macro elige)
 
     /// Envía la petición ya formada: interceptores del usuario → opciones (caché, single-flight,

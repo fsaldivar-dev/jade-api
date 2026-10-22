@@ -22,3 +22,22 @@ public enum HTTPMethod: String, Sendable, Hashable, CaseIterable {
         }
     }
 }
+
+
+/// Familia de retorno de un endpoint. La elige `@Api(kind:)`; el tipo de retorno debe corresponder.
+public enum ApiKind: Sendable {
+    /// Petición y respuesta normales (por defecto): `Decodable`, `Data`, `String`, `Void` o `Response`.
+    case request
+    /// Body por trozos: `AsyncThrowingStream<Data, any Error>`.
+    case bytes
+    /// Líneas de texto: `AsyncThrowingStream<String, any Error>`.
+    case lines
+    /// Un JSON por línea: `AsyncThrowingStream<Elemento, any Error>` con `Elemento: Decodable`.
+    case ndjson
+    /// Server-Sent Events: `AsyncThrowingStream<ServerEvent, any Error>`.
+    case sse
+    /// Descarga a disco con progreso: `Download`.
+    case download
+    /// Subida con progreso: `Upload`.
+    case upload
+}

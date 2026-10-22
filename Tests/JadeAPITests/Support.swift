@@ -254,3 +254,22 @@ enum FixturePlist {
         ],
     ] }
 }
+
+// MARK: - Fase 3a: streams
+
+struct Chunk: Decodable, Sendable, Equatable { let index: Int; let text: String }
+
+@Repository
+protocol FeedRepository: Sendable {
+    @Api("/export", kind: .bytes)
+    func export() async throws -> AsyncThrowingStream<Data, any Error>
+
+    @Api("/log", kind: .lines)
+    func log() async throws -> AsyncThrowingStream<String, any Error>
+
+    @Api("/completions", method: .post, kind: .ndjson)
+    func complete(prompt: String) async throws -> AsyncThrowingStream<Chunk, any Error>
+
+    @Api("/events", kind: .sse)
+    func events() async throws -> AsyncThrowingStream<ServerEvent, any Error>
+}

@@ -87,6 +87,7 @@ struct ApiArguments {
     var path: String?
     var method: String?
     var timeout: String?
+    var kind: String = "request"
 
     init(_ attribute: AttributeSyntax, in context: some MacroExpansionContext) {
         guard case .argumentList(let list)? = attribute.arguments else { return }
@@ -100,6 +101,12 @@ struct ApiArguments {
                     }
                 } else {
                     context.error(argument.expression, id: "pathLiteral", "@Api path must be a string literal")
+                }
+            } else if argument.label?.text == "kind" {
+                if let member = argument.expression.as(MemberAccessExprSyntax.self) {
+                    kind = member.declName.baseName.text
+                } else {
+                    context.error(argument.expression, id: "kind", "@Api kind must be written as .bytes, .lines, .ndjson, .sse, .download or .upload")
                 }
             } else if argument.label?.text == "timeout" {
                 timeout = argument.expression.trimmedDescription

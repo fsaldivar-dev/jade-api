@@ -50,8 +50,12 @@ public macro Repository(service: String? = nil) = #externalMacro(module: "JadeAP
 /// marquen con ``Path``, ``Query``, ``Header`` o ``Body``.
 ///
 /// La ruta explícita es la recomendación; la inferencia es azúcar para prototipos.
+///
+/// `kind:` elige la familia de retorno (``ApiKind``): `.bytes`, `.lines`, `.ndjson` y `.sse` devuelven
+/// un `AsyncThrowingStream` que empieza al hacer `await` del requisito y valida el status antes;
+/// `.download` y `.upload` devuelven un manejador con progreso.
 @attached(peer)
-public macro Api(_ path: String = "", method: HTTPMethod? = nil, timeout: Duration? = nil) = #externalMacro(module: "JadeAPIMacros", type: "ApiMacro")
+public macro Api(_ path: String = "", method: HTTPMethod? = nil, timeout: Duration? = nil, kind: ApiKind = .request) = #externalMacro(module: "JadeAPIMacros", type: "ApiMacro")
 
 /// Interceptores para todos los endpoints de un repositorio, por dentro de los del cliente.
 ///
