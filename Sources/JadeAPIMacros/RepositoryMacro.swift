@@ -31,17 +31,27 @@ public struct RepositoryMacro: PeerMacro {
 
         let name = proto.name.text
         let body = methods.isEmpty ? "" : "\n\n" + methods.joined(separator: "\n\n")
+        // @Interceptors(A(), B()) a nivel de protocolo → se añaden al cliente en el init.
+        var assignment = "self.client = client"
+        if let interceptors = Attributes.find("Interceptors", in: proto.attributes),
+           case .argumentList(let arguments)? = interceptors.arguments, !arguments.isEmpty {
+            let list = arguments.map { $0.expression.trimmedDescription }.joined(separator: ", ")
+            assignment = "self.client = client.with(interceptors: [\(list)])"
+        }
         return [DeclSyntax(stringLiteral: """
         @AnnotationSwift.Decorable
         \(access)struct \(name)Client: \(name), Sendable {
             \(access)let client: JadeAPI.AppClient
 
             \(access)init(client: JadeAPI.AppClient) {
-                self.client = client
+                \(assignment)
             }\(body)
         }
         """)]
     }
+
+    /// Atributos que @Repository consume y no copia al método generado.
+    static let consumedAttributes: Set<String> = ["Api", "Transform", "Unwrap", "ErrorTransform", "Interceptors"]
 
     // MARK: - Un método por requisito
 
@@ -103,7 +113,7 @@ public struct RepositoryMacro: PeerMacro {
         """)
         statements.append("return try await client.\(performCall(for: function))(__endpoint)")
 
-        let copiedAttributes = Attributes.copying(function.attributes, excluding: ["Api"])
+        let copiedAttributes = Attributes.copying(function.attributes, excluding: Self.consumedAttributes)
         let attributes = copiedAttributes.isEmpty ? "" : copiedAttributes.joined(separator: "\n    ") + "\n    "
         let signatureText = function.signature.trimmedDescription
         return """

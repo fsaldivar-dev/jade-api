@@ -10,5 +10,5 @@ import SwiftSyntaxMacros
 
 @main
 struct JadeAPIPlugin: CompilerPlugin {
-    let providingMacros: [Macro.Type] = [RepositoryMacro.self, ApiMacro.self]
+    let providingMacros: [Macro.Type] = [RepositoryMacro.self, ApiMacro.self, RepositoryAttributeMacro.self]
 }

@@ -10,10 +10,13 @@ public struct AppClient: Sendable {
     /// Headers que van en todas las peticiones. Los del endpoint tienen prioridad.
     public var headers: [String: String]
     public var timeout: TimeInterval
+    /// Cadena de interceptores: el primero es el más externo; el último habla con el transporte.
+    public var interceptors: [any Interceptor]
 
     public init(
         baseURL: URL,
         transport: any HTTPClient = URLSessionClient(),
+        interceptors: [any Interceptor] = [],
         decoder: JSONDecoder = JSONDecoder(),
         encoder: JSONEncoder = JSONEncoder(),
         headers: [String: String] = ["Accept": "application/json"],
@@ -21,21 +24,30 @@ public struct AppClient: Sendable {
     ) {
         self.baseURL = baseURL
         self.transport = transport
+        self.interceptors = interceptors
         self.decoder = decoder
         self.encoder = encoder
         self.headers = headers
         self.timeout = timeout
     }
 
+    /// Copia del cliente con interceptores añadidos por dentro de los existentes
+    /// (cliente → repositorio → red). Lo usa `@Interceptors` a nivel de repositorio.
+    public func with(interceptors extra: [any Interceptor]) -> AppClient {
+        var copy = self
+        copy.interceptors.append(contentsOf: extra)
+        return copy
+    }
+
     /// Atajo con un string; falla en tiempo de ejecución si no es una URL.
-    public init(baseURL: String, transport: any HTTPClient = URLSessionClient()) {
+    public init(baseURL: String, transport: any HTTPClient = URLSessionClient(), interceptors: [any Interceptor] = []) {
         guard let url = URL(string: baseURL) else { preconditionFailure("AppClient: '\(baseURL)' no es una URL válida") }
-        self.init(baseURL: url, transport: transport)
+        self.init(baseURL: url, transport: transport, interceptors: interceptors)
     }
 
     /// Toma base y transporte del entorno.
-    public init(stage: some StageProtocol, decoder: JSONDecoder = JSONDecoder(), encoder: JSONEncoder = JSONEncoder(), headers: [String: String] = ["Accept": "application/json"], timeout: TimeInterval = 30) {
-        self.init(baseURL: stage.baseURL, transport: stage.transport, decoder: decoder, encoder: encoder, headers: headers, timeout: timeout)
+    public init(stage: some StageProtocol, interceptors: [any Interceptor] = [], decoder: JSONDecoder = JSONDecoder(), encoder: JSONEncoder = JSONEncoder(), headers: [String: String] = ["Accept": "application/json"], timeout: TimeInterval = 30) {
+        self.init(baseURL: stage.baseURL, transport: stage.transport, interceptors: interceptors, decoder: decoder, encoder: encoder, headers: headers, timeout: timeout)
     }
 
     // MARK: - Construcción de la petición
@@ -73,10 +85,15 @@ public struct AppClient: Sendable {
 
     // MARK: - Ejecución (una variante por familia de retorno; la macro elige)
 
+    /// Envía la petición ya formada a través de la cadena de interceptores y el transporte, sin validar el status.
+    public func send(_ request: Request) async throws -> Response {
+        try await InterceptorChain.run(interceptors, request: request, transport: transport)
+    }
+
     /// Envía y valida 2xx. Base de las demás variantes.
     public func performResponse(_ endpoint: Endpoint, isolation: isolated (any Actor)? = #isolation) async throws -> Response {
         let request = try makeRequest(endpoint)
-        let response = try await transport.send(request)
+        let response = try await send(request)
         guard response.isSuccess else { throw HTTPError.status(response.status, response) }
         return response
     }

@@ -38,3 +38,15 @@ public macro Repository() = #externalMacro(module: "JadeAPIMacros", type: "Repos
 /// La ruta explícita es la recomendación; la inferencia es azúcar para prototipos.
 @attached(peer)
 public macro Api(_ path: String = "", method: HTTPMethod? = nil) = #externalMacro(module: "JadeAPIMacros", type: "ApiMacro")
+
+/// Interceptores para todos los endpoints de un repositorio, por dentro de los del cliente.
+///
+/// ```swift
+/// @Repository
+/// @Interceptors(SignRequest(), RequestLogger(.curl))
+/// protocol PaymentsRepository: Sendable { … }
+/// ```
+///
+/// El cliente generado hace `client.with(interceptors: [SignRequest(), RequestLogger(.curl)])` en su `init`.
+@attached(peer)
+public macro Interceptors(_ interceptors: any Interceptor...) = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")

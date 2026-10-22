@@ -89,3 +89,47 @@ enum Stage: String, StageProtocol {
         }
     }
 }
+
+// MARK: - Interceptores de prueba
+
+/// Anota su nombre al entrar y al salir, para comprobar el orden de la cadena.
+struct Trace: Interceptor {
+    let name: String
+    let log: TraceLog
+    func intercept(_ request: Request, next: Next) async throws -> Response {
+        log.append("\(name) →")
+        var request = request
+        request.headers["X-Trace"] = (request.headers["X-Trace"].map { $0 + "," } ?? "") + name
+        let response = try await next(request)
+        log.append("\(name) ←")
+        return response
+    }
+}
+
+final class TraceLog: @unchecked Sendable {
+    private let lock = NSLock(); private var lines: [String] = []
+    func append(_ line: String) { lock.lock(); lines.append(line); lock.unlock() }
+    var all: [String] { lock.lock(); defer { lock.unlock() }; return lines }
+}
+
+/// Proveedor de tokens que cuenta los refresh.
+actor CountingTokens: TokenProvider {
+    var token: String?
+    var refreshes = 0
+    let refreshDelay: Duration
+    init(token: String?, refreshDelay: Duration = .milliseconds(50)) { self.token = token; self.refreshDelay = refreshDelay }
+    func currentToken() async throws -> String? { token }
+    func refreshToken() async throws -> String {
+        refreshes += 1
+        try await Task.sleep(for: refreshDelay)
+        token = "fresh-\(refreshes)"
+        return token!
+    }
+}
+
+@Repository
+@Interceptors(CommonHeaders(["X-Repo": "payments"]))
+protocol PaymentsRepository: Sendable {
+    @Api("/payments/:id")
+    func payment(id: Int) async throws -> Response
+}
