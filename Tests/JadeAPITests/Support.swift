@@ -191,3 +191,10 @@ protocol CatalogRepository: Sendable {
     @Api("/catalog/:id")
     func item(id: Int) async throws -> User
 }
+
+/// Cuenta cuántas peticiones están en vuelo a la vez y el máximo alcanzado.
+final class ConcurrencyMeter: @unchecked Sendable {
+    private let lock = NSLock(); private var current = 0; private(set) var peak = 0
+    func enter() { lock.lock(); current += 1; peak = max(peak, current); lock.unlock() }
+    func exit() { lock.lock(); current -= 1; lock.unlock() }
+}
