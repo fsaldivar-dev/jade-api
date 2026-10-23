@@ -20,14 +20,14 @@ Retrofit para Swift, con una diferencia: la política de cada endpoint (`@Retrie
 `@Logged`, los tuyos) se apila sobre el mismo método y la escribe quien usa la librería.
 Está construida sobre [AnnotationSwift](https://github.com/fsaldivar-dev/experimental-annotation-swift).
 
-> Estado: 0.9.0. Niveles 1 y 2 completos, transporte avanzado y la seguridad del nivel 3. Lo que falta, y lo que se prometió y no está, en [docs/ROADMAP.md](docs/ROADMAP.md).
+> Estado: 0.10.0. Niveles 1 y 2 completos, transporte avanzado y la seguridad del nivel 3. Lo que falta, y lo que se prometió y no está, en [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick Start
 
 **1. Dependencia** (Swift 6.2+):
 
 ```swift
-.package(url: "https://github.com/fsaldivar-dev/jade-api.git", from: "0.9.0")
+.package(url: "https://github.com/fsaldivar-dev/jade-api.git", from: "0.10.0")
 // target: .product(name: "JadeAPI", package: "jade-api")
 ```
 
