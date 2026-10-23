@@ -88,6 +88,33 @@ nunca pasa el token a mano: entra en sesión y `GET /auth/me` sale con el Bearer
 **Desarrollo seguro.** El `TokenProvider` de producción guarda el token en el Keychain, no en memoria ni
 en `UserDefaults`. Ver [Keychain y tokens](05-Desarrollo-seguro.md#keychain-y-tokens).
 
+### Guardián: @Authenticated
+
+**Qué es.** Un marcador que exige sesión: sin token, el endpoint corta con `HTTPError.unauthenticated`
+**antes de tocar la red**.
+
+**Por qué.** Si ya sabes que no hay sesión, mandar la petición y esperar el 401 del servidor es un viaje
+perdido. El guardián falla rápido y te da un error claro para ir directo al login, sin parsear un status.
+
+**Cómo funciona.** El macro marca el endpoint con `requiresAuth`, y quien lo hace cumplir es el
+`AuthInterceptor` que ya pones para la auth: comprueba el token antes de salir. Sin `AuthInterceptor` en
+la cadena, el marcador es inerte. No refresca: solo mira `currentToken()`, así que tu `TokenProvider`
+debe devolver `nil` solo cuando de verdad no hay sesión.
+
+```swift
+@Repository(service: "catalog")
+@Authenticated                       // todos los endpoints exigen sesión…
+protocol CatalogRepository: Sendable {
+    @Api("/products") func featured() async throws -> [Product]
+
+    @Public                          // …salvo este (health check, login)
+    @Api("/status") func status() async throws -> Status
+}
+```
+
+**En la demo.** El catálogo es `@Authenticated`: sin iniciar sesión, cargarlo no toca la red y muestra el
+error. Ver [`CatalogRepository`](../Examples/Guide/Sources/GuideCore/Network/Repositories/CatalogRepository.swift).
+
 ## El motor de opciones
 
 Caché, single-flight, reintentos y timeout no son interceptores: son **opciones** que el cliente aplica

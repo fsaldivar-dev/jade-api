@@ -52,13 +52,16 @@ public struct RequestOptions: Sendable, Hashable {
     public var singleFlight: Bool
     /// Reconexión y keep-alive de un `@Socket`.
     public var socket: SocketPolicy?
+    /// El endpoint exige sesión: `AuthInterceptor` corta con `HTTPError.unauthenticated` si no hay token.
+    public var requiresAuth: Bool
 
-    public init(timeout: Duration? = nil, cache: Duration? = nil, retry: RetryPolicy? = nil, singleFlight: Bool = false, socket: SocketPolicy? = nil) {
+    public init(timeout: Duration? = nil, cache: Duration? = nil, retry: RetryPolicy? = nil, singleFlight: Bool = false, socket: SocketPolicy? = nil, requiresAuth: Bool = false) {
         self.timeout = timeout
         self.cache = cache
         self.retry = retry
         self.singleFlight = singleFlight
         self.socket = socket
+        self.requiresAuth = requiresAuth
     }
 
     public static let none = RequestOptions()
@@ -67,7 +70,7 @@ public struct RequestOptions: Sendable, Hashable {
     public func merging(over base: RequestOptions) -> RequestOptions {
         RequestOptions(timeout: timeout ?? base.timeout, cache: cache ?? base.cache,
                        retry: retry ?? base.retry, singleFlight: singleFlight || base.singleFlight,
-                       socket: socket ?? base.socket)
+                       socket: socket ?? base.socket, requiresAuth: requiresAuth || base.requiresAuth)
     }
 }
 

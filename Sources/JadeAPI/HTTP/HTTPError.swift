@@ -14,6 +14,8 @@ public enum HTTPError: Error, CustomStringConvertible {
     case decoding(any Error, Response)
     /// URL con esquema `http://` fuera de una build de depuración. Ver ``SecurityPolicy``.
     case insecureURL(URL)
+    /// Un endpoint `@Authenticated` se llamó sin sesión: se corta antes de la red.
+    case unauthenticated
     /// La tarea fue cancelada.
     case cancelled
     /// Se superó el `timeout` de las opciones del endpoint.
@@ -29,6 +31,7 @@ public enum HTTPError: Error, CustomStringConvertible {
         case .status(let code, let response): "HTTP \(code) en \(response.request.method.rawHTTP) \(response.request.path)"
         case .decoding(let error, let response): "no se pudo decodificar la respuesta de \(response.request.path): \(error)"
         case .insecureURL(let url): "URL insegura fuera de Debug: \(url.absoluteString) (solo https)"
+        case .unauthenticated: "no hay sesión: se requiere autenticación"
         case .cancelled: "cancelada"
         case .timeout(let duration, let request): "timeout de \(duration) en \(request.method.rawHTTP) \(request.path)"
         case .unsupported(let what): "el transporte no soporta \(what)"

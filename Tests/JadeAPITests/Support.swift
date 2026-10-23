@@ -365,3 +365,12 @@ protocol AccountsRequestRepository: Sendable {
     @Api("/sections/:section/users")
     func search(_ query: UserQuery) async throws -> [User]         // @Parameter → query, Path → ruta
 }
+
+// MARK: - Guardián de sesión (@Authenticated)
+
+@Repository
+@Authenticated
+protocol GuardedRepository: Sendable {
+    @Api("/me") func me() async throws -> User              // requiere sesión
+    @Public @Api("/status") func status() async throws -> User   // excepción
+}

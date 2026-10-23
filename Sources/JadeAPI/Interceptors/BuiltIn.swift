@@ -160,6 +160,8 @@ public struct AuthInterceptor: Interceptor {
     public func intercept(_ request: Request, next: Next) async throws -> Response {
         var request = request
         let token = try await tokens.currentToken()
+        // Guardián @Authenticated: sin token, el endpoint protegido no llega a la red.
+        if request.options.requiresAuth, token == nil { throw HTTPError.unauthenticated }
         if let token { request.headers[header] = "\(scheme) \(token)" }
         let response = try await next(request)
         // Sin token no hay nada que refrescar: ese 401 es la respuesta (p. ej. un login con credenciales malas).

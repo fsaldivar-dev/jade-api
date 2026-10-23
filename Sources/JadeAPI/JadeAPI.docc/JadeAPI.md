@@ -82,6 +82,8 @@ decorador si tocas la llamada, transformador si tocas datos*.
 - ``ResponseInterceptor``
 - ``AuthInterceptor``
 - ``TokenProvider``
+- ``Authenticated()``
+- ``Public()``
 - ``CommonHeaders``
 - ``RequestLogger``
 - ``MetricsInterceptor``

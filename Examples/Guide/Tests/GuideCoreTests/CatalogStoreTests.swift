@@ -10,6 +10,7 @@ struct CatalogStoreTests {
     @Test("carga destacados y categorías a la vez, y el detalle de cada destacado")
     func load() async throws {
         let app = try TestApp()
+        try await app.signIn()
         await app.run { await app.catalog.load() }
         #expect(app.catalog.errorMessage == nil)
         #expect(app.catalog.featured.map(\.name) == ["Essence Mascara", "Eyeshadow Palette", "Powder Canister"])
@@ -21,6 +22,7 @@ struct CatalogStoreTests {
     @Test("el producto 9999 falla con CatalogError sin tumbar al resto")
     func missingProduct() async throws {
         let app = try TestApp()
+        try await app.signIn()
         await app.run { await app.catalog.load() }
         guard case .failure(let error)? = app.catalog.details[9999] else { Issue.record("se esperaba un fallo para el 9999"); return }
         #expect(error as? CatalogError == .server(message: "Product with id '9999' not found"))
@@ -30,6 +32,7 @@ struct CatalogStoreTests {
     @Test("@Retries supera el 503 de la primera carga y @CacheFor evita la segunda petición")
     func retriesAndCache() async throws {
         let app = try TestApp()
+        try await app.signIn()
         await app.run {
             await app.catalog.load()
             await app.catalog.load()
@@ -38,9 +41,19 @@ struct CatalogStoreTests {
         #expect(app.mock.received.filter { $0.path == "/products" }.count == 2)   // 503 + reintento; luego caché
     }
 
+    @Test("@Authenticated: sin sesión el catálogo corta antes de la red")
+    func cutsWithoutSession() async throws {
+        let app = try TestApp()
+        await app.run { await app.catalog.load() }      // sin signIn
+        #expect(app.catalog.featured.isEmpty)
+        #expect(app.catalog.errorMessage == "no hay sesión: se requiere autenticación")
+        #expect(!app.mock.received.contains { $0.path == "/products" }, "no debió salir a la red")
+    }
+
     @Test("search con @ApiRequest manda q como query y devuelve resultados")
     func searchRequestObject() async throws {
         let app = try TestApp()
+        try await app.signIn()
         await app.run { await app.catalog.search("mascara") }
         #expect(app.catalog.searchResults.contains { $0.name == "Essence Mascara" })
         let request = try #require(app.mock.received.last { $0.path == "/products/search" })
@@ -52,6 +65,7 @@ struct CatalogStoreTests {
     @Test("@Headers del repositorio viaja en cada petición del catálogo")
     func headers() async throws {
         let app = try TestApp()
+        try await app.signIn()
         await app.run { await app.catalog.load() }
         #expect(app.mock.received.filter { $0.path.hasPrefix("/products") }.allSatisfy { $0.headers["X-Client"] == "JadeAPI-Guide" })
     }

@@ -185,3 +185,23 @@ public macro ApiRequest() = #externalMacro(module: "JadeAPIMacros", type: "ApiRe
 /// legible: un campo pelón se trata igual. El destino lo decide el tipo del campo en `@ApiRequest`.
 @attached(peer)
 public macro Parameter() = #externalMacro(module: "JadeAPIMacros", type: "ParameterMarkerMacro")
+
+/// Guardián de sesión: el endpoint exige un token. Sin sesión, `AuthInterceptor` corta con
+/// `HTTPError.unauthenticated` **antes de tocar la red**. Sobre el protocolo aplica a todos los
+/// endpoints; sobre un requisito, solo a ese. El marcador lo hace cumplir el interceptor: sin
+/// `AuthInterceptor` en la cadena es inerte.
+///
+/// ```swift
+/// @Repository(service: "catalog")
+/// @Authenticated
+/// protocol CatalogRepository: Sendable {
+///     @Api("/products") func featured() async throws -> [Product]
+///     @Public @Api("/status") func status() async throws -> Status   // excepción
+/// }
+/// ```
+@attached(peer)
+public macro Authenticated() = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")
+
+/// Exime a un endpoint del `@Authenticated` del protocolo: no requiere sesión (login, health check).
+@attached(peer)
+public macro Public() = #externalMacro(module: "JadeAPIMacros", type: "RepositoryAttributeMacro")

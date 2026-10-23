@@ -18,6 +18,7 @@ public struct ProductQuery {
 }
 
 @Repository(service: "catalog")
+@Authenticated                                   // todo el catálogo exige sesión: sin token corta antes de la red
 @Headers(["X-Client": "JadeAPI-Guide"])
 @ErrorTransform(CatalogErrorMapper.self)
 @Retries(2, backoff: .constant(.milliseconds(300)))

@@ -18,6 +18,8 @@ let macros: [String: Macro.Type] = [
     "Socket": RepositoryAttributeMacro.self,
     "ApiRequest": ApiRequestMacro.self,
     "Parameter": ParameterMarkerMacro.self,
+    "Authenticated": RepositoryAttributeMacro.self,
+    "Public": RepositoryAttributeMacro.self,
 ]
 
 final class RepositoryMacroTests: XCTestCase {
@@ -347,6 +349,67 @@ final class RepositoryMacroTests: XCTestCase {
                 /// Implementación real resuelta por el entorno: `let repo: ChatRepository = try .live(in: environment)`.
                 static func live(in environment: JadeAPI.Environment) throws -> Self {
                     try ChatRepositoryClient(environment: environment)
+                }
+            }
+            """,
+            macros: macros
+        )
+    }
+
+    func testAuthenticatedInjectsOption() {
+        assertMacroExpansion(
+            """
+            @Repository
+            @Authenticated
+            protocol GuardedRepository: Sendable {
+                @Api("/me") func me() async throws -> User
+                @Public @Api("/status") func status() async throws -> User
+            }
+            """,
+            expandedSource: """
+            protocol GuardedRepository: Sendable {
+                func me() async throws -> User
+                func status() async throws -> User
+            }
+
+            @AnnotationSwift.Decorable
+            struct GuardedRepositoryClient: GuardedRepository, Sendable {
+                /// Servicio del ``Environment`` al que pertenece este repositorio.
+                static let service: String = JadeAPI.Environment.defaultService
+
+                let client: JadeAPI.AppClient
+
+                init(client: JadeAPI.AppClient) {
+                    self.client = client
+                }
+
+                /// Cliente del servicio `default` resuelto por el entorno.
+                init(environment: JadeAPI.Environment) throws {
+                    self.init(client: try environment.client(for: Self.service))
+                }
+
+                /// Fábrica: `GuardedRepositoryClient.live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> GuardedRepositoryClient {
+                    try GuardedRepositoryClient(environment: environment)
+                }
+
+                func me() async throws -> User {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "me()", method: .get, path: "/me", pathParameters: [:], query: [], headers: __headers, body: nil, options: JadeAPI.RequestOptions(requiresAuth: true))
+                    return try await client.perform(__endpoint)
+                }
+
+                func status() async throws -> User {
+                    let __headers: [String: String] = [:]
+                    let __endpoint = JadeAPI.Endpoint(name: "status()", method: .get, path: "/status", pathParameters: [:], query: [], headers: __headers, body: nil)
+                    return try await client.perform(__endpoint)
+                }
+            }
+
+            extension GuardedRepository where Self == GuardedRepositoryClient {
+                /// Implementación real resuelta por el entorno: `let repo: GuardedRepository = try .live(in: environment)`.
+                static func live(in environment: JadeAPI.Environment) throws -> Self {
+                    try GuardedRepositoryClient(environment: environment)
                 }
             }
             """,

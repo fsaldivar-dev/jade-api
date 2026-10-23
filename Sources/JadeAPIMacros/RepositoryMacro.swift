@@ -20,6 +20,7 @@ public struct RepositoryMacro: PeerMacro {
         let protocolOptions = Self.optionsExpression(from: proto.attributes, apiTimeout: nil)
         let protocolRetries = Attributes.find("Retries", in: proto.attributes)
         let protocolUnwrap = Self.stringArgument(of: Attributes.find("Unwrap", in: proto.attributes), in: context)
+        let protocolAuthenticated = Attributes.find("Authenticated", in: proto.attributes) != nil
         let protocolErrorMapper = Self.typeArgument(of: Attributes.find("ErrorTransform", in: proto.attributes))
 
         for member in proto.memberBlock.members {
@@ -30,7 +31,7 @@ public struct RepositoryMacro: PeerMacro {
                 }
                 continue
             }
-            if let generated = generate(function, access: access, protocolOptions: protocolOptions, protocolRetries: protocolRetries, protocolUnwrap: protocolUnwrap, protocolErrorMapper: protocolErrorMapper, in: context) {
+            if let generated = generate(function, access: access, protocolOptions: protocolOptions, protocolRetries: protocolRetries, protocolUnwrap: protocolUnwrap, protocolErrorMapper: protocolErrorMapper, protocolAuthenticated: protocolAuthenticated, in: context) {
                 methods.append(generated)
             }
         }
@@ -78,7 +79,7 @@ public struct RepositoryMacro: PeerMacro {
     }
 
     /// Atributos que @Repository consume y no copia al método generado.
-    static let consumedAttributes: Set<String> = ["Api", "Socket", "Transform", "Unwrap", "ErrorTransform", "Interceptors", "Retries", "CacheFor", "SingleFlight", "Idempotent", "Headers", "BaseURL", "KeyMapping"]
+    static let consumedAttributes: Set<String> = ["Api", "Socket", "Transform", "Unwrap", "ErrorTransform", "Interceptors", "Retries", "CacheFor", "SingleFlight", "Idempotent", "Headers", "BaseURL", "KeyMapping", "Authenticated", "Public"]
 
     /// Lo que el `init(client:)` generado hace con el cliente recibido, de afuera hacia adentro:
     /// `@BaseURL` → `@Headers` → `@KeyMapping` → `@Interceptors`. Sin atributos, el cliente tal cual.
@@ -116,7 +117,7 @@ public struct RepositoryMacro: PeerMacro {
 
     // MARK: - Un método por requisito
 
-    private static func generate(_ function: FunctionDeclSyntax, access: String, protocolOptions: String?, protocolRetries: AttributeSyntax?, protocolUnwrap: String?, protocolErrorMapper: String?, in context: some MacroExpansionContext) -> String? {
+    private static func generate(_ function: FunctionDeclSyntax, access: String, protocolOptions: String?, protocolRetries: AttributeSyntax?, protocolUnwrap: String?, protocolErrorMapper: String?, protocolAuthenticated: Bool, in context: some MacroExpansionContext) -> String? {
         let socket = Attributes.find("Socket", in: function.attributes)
         guard let api = Attributes.find("Api", in: function.attributes) ?? socket else {
             context.error(function.name, id: "missingApi", "every requirement of a @Repository needs @Api or @Socket")
@@ -179,7 +180,9 @@ public struct RepositoryMacro: PeerMacro {
         // Construcción del Endpoint.
         let signature = function.name.text + "(" + function.signature.parameterClause.parameters.map { "\($0.firstName.text):" }.joined() + ")"
         let staticHeaders = Attributes.find("Headers", in: function.attributes).flatMap(Self.firstArgument) ?? "[:]"
-        let endpointOptions = optionsExpression(from: function.attributes, apiTimeout: arguments.timeout, socketPolicy: socket.flatMap(Self.socketPolicyExpression))
+        let requiresAuth = (protocolAuthenticated || Attributes.find("Authenticated", in: function.attributes) != nil)
+            && Attributes.find("Public", in: function.attributes) == nil
+        let endpointOptions = optionsExpression(from: function.attributes, apiTimeout: arguments.timeout, socketPolicy: socket.flatMap(Self.socketPolicyExpression), requiresAuth: requiresAuth)
         let optionsArgument: String
         switch (endpointOptions, protocolOptions) {
         case (nil, nil): optionsArgument = ""
@@ -290,10 +293,10 @@ public struct RepositoryMacro: PeerMacro {
 
     /// `@Retries(3, backoff: .constant(.seconds(1))) @CacheFor(.seconds(60)) @SingleFlight` + `timeout:` de @Api
     /// → `JadeAPI.RequestOptions(timeout: …, cache: …, retry: JadeAPI.RetryPolicy(attempts: 3, backoff: …), singleFlight: true)`.
-    static func optionsExpression(from attributes: AttributeListSyntax, apiTimeout: String?, socketPolicy: String? = nil) -> String? {
+    static func optionsExpression(from attributes: AttributeListSyntax, apiTimeout: String?, socketPolicy: String? = nil, requiresAuth: Bool = false) -> String? {
+        // El orden sigue al de `RequestOptions.init`: timeout, cache, retry, singleFlight, socket, requiresAuth.
         var fields: [String] = []
         if let timeout = apiTimeout { fields.append("timeout: \(timeout)") }
-        if let socketPolicy { fields.append("socket: \(socketPolicy)") }
         if let cache = Attributes.find("CacheFor", in: attributes), case .argumentList(let list)? = cache.arguments, let first = list.first {
             fields.append("cache: \(first.expression.trimmedDescription)")
         }
@@ -304,6 +307,8 @@ public struct RepositoryMacro: PeerMacro {
             fields.append("retry: JadeAPI.RetryPolicy(\(inner))")
         }
         if Attributes.find("SingleFlight", in: attributes) != nil { fields.append("singleFlight: true") }
+        if let socketPolicy { fields.append("socket: \(socketPolicy)") }
+        if requiresAuth { fields.append("requiresAuth: true") }
         return fields.isEmpty ? nil : "JadeAPI.RequestOptions(\(fields.joined(separator: ", ")))"
     }
 

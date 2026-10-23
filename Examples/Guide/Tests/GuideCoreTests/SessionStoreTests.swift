@@ -32,15 +32,15 @@ struct SessionStoreTests {
         #expect(me.headers["Authorization"] == "Bearer tok-emilys")
     }
 
-    @Test("logout olvida el token: la siguiente petición sale sin Bearer")
+    @Test("logout olvida el token: el catálogo @Authenticated ya corta antes de la red")
     func signOut() async throws {
         let app = try TestApp()
         try await app.signIn()
         await app.run { await app.session.signOut() }
         await app.run { await app.catalog.load() }
         #expect(app.session.status == .signedOut)
-        let products = try #require(app.mock.received.last { $0.path == "/products" })
-        #expect(products.headers["Authorization"] == nil)
+        #expect(app.catalog.errorMessage == "no hay sesión: se requiere autenticación")
+        #expect(!app.mock.received.contains { $0.path == "/products" }, "sin sesión no debió salir a la red")
     }
 
     @Test("@Logged deja rastro de cada llamada en el CallLog de la tarea")
